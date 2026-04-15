@@ -202,9 +202,12 @@ main() {
   WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/clone-all.XXXXXX")
   info "Work directory: ${WORKDIR}"
 
-  # Fetch the list of repos from upstream-map.yaml
+  # Fetch the list of repos from upstream-map.yaml.
+  # Write to a temp file so that failures in fetch_repo_names propagate
+  # (process substitution would swallow the exit code).
+  fetch_repo_names > "${WORKDIR}/repos.txt" || die "Failed to fetch repo list"
   local repos
-  mapfile -t repos < <(fetch_repo_names)
+  mapfile -t repos < "${WORKDIR}/repos.txt"
   info "Found ${#repos[@]} repos in upstream-map.yaml"
 
   # Optionally add bootstrap
