@@ -31,13 +31,14 @@ sanitize_text() {
   # Also remove inline occurrences
   local text="$1"
   echo "$text" \
-    | sed -E '/^[[:space:]]*[Rr]equested [Bb]y[[:space:]]*:[[:space:]]*.*$/d' \
-    | sed -E 's/[Rr]equested [Bb]y[[:space:]]*:[[:space:]]*@[A-Za-z0-9_.-]+//g' \
-    | sed -E 's/[Rr]equested [Bb]y[[:space:]]*:[[:space:]]*[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}//g'
+    | sed -E '/^[[:space:]]*[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*.*$/d' \
+    | sed -E 's/[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*@[A-Za-z0-9_.-]+//g' \
+    | sed -E 's/[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}//g'
 }
 
 has_pii() {
-  echo "$1" | grep -qPi '[Rr]equested\s+[Bb]y\s*:\s*[@\w]'
+  # Match @username or email patterns; standalone full lines are always deleted by sed #1
+  echo "$1" | grep -qPi '[Rr]equested\s+[Bb]y\s*:\s*(@[A-Za-z0-9_.-]|[A-Za-z0-9._%+-]+@)'
 }
 
 for REPO_NAME in $REPOS; do
