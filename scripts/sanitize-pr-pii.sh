@@ -38,7 +38,7 @@ sanitize_text() {
 
 has_pii() {
   # Match @username or email patterns; standalone full lines are always deleted by sed #1
-  echo "$1" | grep -qPi '[Rr]equested\s+[Bb]y\s*:\s*(@[A-Za-z0-9_.-]|[A-Za-z0-9._%+-]+@)'
+  echo "$1" | grep -qP '[Rr]equested\s+[Bb]y\s*:\s*(@[A-Za-z0-9_.-]|[A-Za-z0-9._%+-]+@)'
 }
 
 for REPO_NAME in $REPOS; do
