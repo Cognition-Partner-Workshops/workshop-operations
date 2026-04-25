@@ -159,19 +159,23 @@ for repo_name in "${SOURCE_REPOS[@]}"; do
   if [ "$STRIP_WORKFLOWS" = true ]; then
     work_dir="$TMPDIR/${repo_name}-work"
     git clone "$clone_dir" "$work_dir" 2>>"$LOGFILE"
-    if [ -d "$work_dir/.github/workflows" ]; then
-      rm -rf "$work_dir/.github/workflows"
-      cd "$work_dir"
-      # Create local branches for all remote branches to preserve them
-      for remote_branch in $(git branch -r | grep -v HEAD | sed 's|origin/||'); do
-        git branch --track "$remote_branch" "origin/$remote_branch" 2>/dev/null || true
-      done
-      git add -A && git commit -m "Remove CI workflows for workshop mirror" --allow-empty 2>>"$LOGFILE" || true
-      cd - >/dev/null
-      # Rebuild the bare clone with all branches preserved
-      rm -rf "$clone_dir"
-      git clone --bare "$work_dir" "$clone_dir" 2>>"$LOGFILE"
-    fi
+    cd "$work_dir"
+    # Create local branches for all remote branches
+    for remote_branch in $(git branch -r | grep -v HEAD | sed 's|origin/||' | xargs); do
+      git branch --track "$remote_branch" "origin/$remote_branch" 2>/dev/null || true
+    done
+    # Remove workflows from every branch that has them
+    for branch in $(git branch | sed 's/^[* ]*//' | xargs); do
+      git checkout "$branch" 2>>"$LOGFILE" || continue
+      if [ -d ".github/workflows" ]; then
+        rm -rf ".github/workflows"
+        git add -A && git commit -m "Remove CI workflows for workshop mirror" 2>>"$LOGFILE" || true
+      fi
+    done
+    cd - >/dev/null
+    # Rebuild the bare clone with all branches preserved
+    rm -rf "$clone_dir"
+    git clone --bare "$work_dir" "$clone_dir" 2>>"$LOGFILE"
     rm -rf "$work_dir"
   fi
 

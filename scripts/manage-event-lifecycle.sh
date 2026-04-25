@@ -113,6 +113,7 @@ do_create() {
   local create_args="--git-connection-id=$GIT_CONNECTION_ID --github-org=$GITHUB_ORG"
   [ -n "$MAX_SESSION_ACU" ] && create_args="$create_args --max-session-acu=$MAX_SESSION_ACU"
   [ -n "$MAX_CYCLE_ACU" ] && create_args="$create_args --max-cycle-acu=$MAX_CYCLE_ACU"
+  [ "$API_URL" != "https://api.devin.ai" ] && create_args="$create_args --api-url=$API_URL"
 
   # shellcheck disable=SC2086
   ./scripts/setup-devin-org.sh "$org_display_name" $create_args 2>&1 | tee -a "$logfile"
@@ -129,6 +130,7 @@ do_create() {
     echo "Step 2: Inviting participants..." | tee -a "$logfile"
     local invite_args=""
     [ -n "$ENTERPRISE_ROLE_ID" ] && invite_args="--enterprise-role-id=$ENTERPRISE_ROLE_ID"
+    [ "$API_URL" != "https://api.devin.ai" ] && invite_args="$invite_args --api-url=$API_URL"
     # shellcheck disable=SC2086
     ./scripts/invite-participants.sh "$ORG_ID" "$EMAILS_FILE" $invite_args 2>&1 | tee -a "$logfile"
   else
