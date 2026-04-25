@@ -240,7 +240,7 @@ do_teardown() {
         local m_org_id
         m_org_id=$(jq -r '.org_id' "$manifest")
         if [ "$m_org_id" = "$ORG_ID" ]; then
-          jq '.status = "torn_down" | .torn_down_at = now' "$manifest" > "${manifest}.tmp" && mv "${manifest}.tmp" "$manifest"
+          jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.status = "torn_down" | .torn_down_at = $ts' "$manifest" > "${manifest}.tmp" && mv "${manifest}.tmp" "$manifest"
           echo "Updated manifest: $manifest" | tee -a "$logfile"
           break
         fi
