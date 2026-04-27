@@ -25,24 +25,14 @@ jobs:
           echo "Checking PR description for PII patterns..."
           # Write body to file via printenv to avoid shell interpretation issues
           printenv PR_BODY > /tmp/pr_body.txt
-          echo "DEBUG: Total lines in PR body: $(wc -l < /tmp/pr_body.txt)"
-          echo "DEBUG: Lines matching 'Link to Devin session':"
-          grep -n 'Link to Devin session:' /tmp/pr_body.txt || echo "  (none)"
-          echo "DEBUG: Lines matching 'Requested by':"
-          grep -n -i 'requested by' /tmp/pr_body.txt || echo "  (none)"
           # Strip \r line endings and system-appended footer
           sed -i 's/\r$//' /tmp/pr_body.txt
           sed -i '/^Link to Devin session:/,$d' /tmp/pr_body.txt
           sed -i '/^<!-- devin-review-badge/,$d' /tmp/pr_body.txt
           sed -i '/^[Rr]equested [Bb]y:/d' /tmp/pr_body.txt
-          echo "DEBUG: After stripping, lines matching 'Requested by':"
-          grep -n -i 'requested by' /tmp/pr_body.txt || echo "  (none)"
-          # Check for remaining user-authored PII
-          if grep -qPi 'requested\s+by\s*:\s*\S' /tmp/pr_body.txt; then
+          # Check for remaining PII: only lines starting with "Requested by:"
+          if grep -qPi '^\s*requested\s+by\s*:\s*\S' /tmp/pr_body.txt; then
             echo "::error::PR description contains 'Requested by' PII. Remove it before merging."
-            echo ""
-            echo "Found pattern matching 'Requested by: ...' in the PR description."
-            echo "This is a privacy violation in a multi-tenant environment."
             echo ""
             echo "To fix: edit the PR description and remove the 'Requested by' line."
             echo "To bulk-fix existing PRs: ./scripts/sanitize-pr-pii.sh <ORG>"
