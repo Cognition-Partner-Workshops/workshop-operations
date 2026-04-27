@@ -28,12 +28,13 @@ REPO_NUM=0
 
 sanitize_text() {
   # Remove entire lines that are just "Requested by: ..." (with optional whitespace)
-  # Also remove inline occurrences
+  # Also remove inline occurrences (@username, email, or plain name)
   local text="$1"
   echo "$text" \
     | sed -E '/^[[:space:]]*[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*.*$/d' \
     | sed -E 's/[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*@[A-Za-z0-9_.-]+//g' \
-    | sed -E 's/[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}//g'
+    | sed -E 's/[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}//g' \
+    | sed -E 's/[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*[A-Za-z0-9_.-]+//g'
 }
 
 has_pii() {

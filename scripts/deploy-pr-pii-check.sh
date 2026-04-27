@@ -30,8 +30,8 @@ BRANCH_NAME="add-pii-check"
 for arg in "$@"; do
   case "$arg" in
     --dry-run)       DRY_RUN=true ;;
-    --include=*)     INCLUDE_PATTERN="${arg#*=}" ;;
-    --exclude=*)     EXCLUDE_PATTERN="${arg#*=}" ;;
+    --include=*)     INCLUDE_PATTERN="${INCLUDE_PATTERN:+$INCLUDE_PATTERN|}${arg#*=}" ;;
+    --exclude=*)     EXCLUDE_PATTERN="${EXCLUDE_PATTERN:+$EXCLUDE_PATTERN|}${arg#*=}" ;;
     --branch=*)      BRANCH_NAME="${arg#*=}" ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac

@@ -37,8 +37,8 @@ STRIP_WORKFLOWS=true
 for arg in "$@"; do
   case "$arg" in
     --dry-run)           DRY_RUN=true ;;
-    --include=*)         INCLUDE_PATTERN="${arg#*=}" ;;
-    --exclude=*)         EXCLUDE_PATTERN="${arg#*=}" ;;
+    --include=*)         INCLUDE_PATTERN="${INCLUDE_PATTERN:+$INCLUDE_PATTERN|}${arg#*=}" ;;
+    --exclude=*)         EXCLUDE_PATTERN="${EXCLUDE_PATTERN:+$EXCLUDE_PATTERN|}${arg#*=}" ;;
     --skip-existing)     SKIP_EXISTING=true ;;
     --no-skip-existing)  SKIP_EXISTING=false ;;
     --visibility=*)      VISIBILITY="${arg#*=}" ;;
@@ -172,6 +172,8 @@ for repo_name in "${SOURCE_REPOS[@]}"; do
         git add -A && git commit -m "Remove CI workflows for workshop mirror" 2>>"$LOGFILE" || true
       fi
     done
+    # Restore HEAD to the original default branch so the bare clone inherits it
+    git checkout "$default_branch" 2>>"$LOGFILE"
     cd - >/dev/null
     # Rebuild the bare clone with all branches preserved
     rm -rf "$clone_dir"
