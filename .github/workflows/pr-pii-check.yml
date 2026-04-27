@@ -26,7 +26,12 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           echo "Checking PR description for PII patterns..."
-          if echo "$PR_BODY" | grep -qPi 'requested\s+by\s*:\s*\S'; then
+          # Strip the auto-appended system metadata footer (Devin session link,
+          # requester line, review badge) before checking. These lines are added
+          # by the system and cleaned up by sanitize-pr-pii.sh — we only want to
+          # catch user-authored PII in the PR body itself.
+          USER_BODY=$(echo "$PR_BODY" | sed '/^Link to Devin session:/,$d' | sed '/^<!-- devin-review-badge/,$d')
+          if echo "$USER_BODY" | grep -qPi 'requested\s+by\s*:\s*\S'; then
             echo "::error::PR description contains 'Requested by' PII. Remove it before merging."
             echo ""
             echo "Found pattern matching 'Requested by: ...' in the PR description."

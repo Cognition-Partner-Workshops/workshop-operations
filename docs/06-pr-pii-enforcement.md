@@ -115,6 +115,10 @@ The pattern matched is `Requested by:` followed by any non-whitespace character 
 - `Requested by: user@email.com`
 - `Requested by: John Smith`
 
+### System-Appended Metadata
+
+Devin automatically appends metadata to PR descriptions (session link, requester line, review badge). The workflow strips this footer before checking so that the system-appended `Requested by:` line does not cause false positives. The `sanitize-pr-pii.sh` cleanup script removes these lines from existing PRs.
+
 ## Cleanup Existing PRs
 
 For PRs created before enforcement was enabled:
