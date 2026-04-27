@@ -12,13 +12,17 @@ operator/
 │   ├── 02-devin-enterprise-setup.md  ← Configure Devin Enterprise per event
 │   ├── 03-event-lifecycle.md         ← Create, run, and tear down events
 │   ├── 04-workshop-content.md        ← Craft workshops from module library
-│   └── 05-participant-management.md  ← Invite users, manage access, cleanup
+│   ├── 05-participant-management.md  ← Invite users, manage access, cleanup
+│   └── 06-pr-pii-enforcement.md     ← CI checks and branch rules to block PII
+├── .github/workflows/
+│   └── pr-pii-check.yml             ← GitHub Actions workflow for PII detection
 ├── scripts/
 │   ├── mirror-github-org.sh          ← Mirror all repos between GitHub orgs
 │   ├── setup-devin-org.sh            ← Create a Devin org via /v3 API
 │   ├── manage-event-lifecycle.sh     ← Full lifecycle: create / status / teardown
 │   ├── setup-repos-on-devin.sh       ← Trigger Devin sessions to set up repos
 │   ├── invite-participants.sh        ← Invite users to a Devin org
+│   ├── deploy-pr-pii-check.sh       ← Deploy PII check workflow to all repos
 │   ├── cleanup-all.sh               ← Run all cleanup scripts in sequence
 │   ├── sanitize-pr-pii.sh           ← Remove "Requested by" PII from PRs
 │   ├── delete-stale-branches.sh     ← Delete stale branches (3-week default)
@@ -138,6 +142,14 @@ Create a service user in **Enterprise Settings > Service Users** with:
 
 All cleanup scripts support `--dry-run` to preview changes before executing.
 
+### PR Enforcement
+
+| Script | Usage |
+|--------|-------|
+| `deploy-pr-pii-check.sh` | `./scripts/deploy-pr-pii-check.sh <ORG> [--dry-run] [--include=pattern]` |
+
+Deploys a GitHub Actions workflow to every repo that fails CI if PRs contain "Requested by" PII. See [docs/06-pr-pii-enforcement.md](docs/06-pr-pii-enforcement.md) for branch protection setup.
+
 ## Workshop Architecture
 
 ```
@@ -193,6 +205,7 @@ See the full [API reference](https://docs.devin.ai/api-reference/overview) for r
 | [03-event-lifecycle.md](docs/03-event-lifecycle.md) | Full lifecycle: create, verify, run, cleanup, teardown |
 | [04-workshop-content.md](docs/04-workshop-content.md) | Using workshop-metadata modules, templates, event composition |
 | [05-participant-management.md](docs/05-participant-management.md) | Invitations, branching, privacy, monitoring, teardown |
+| [06-pr-pii-enforcement.md](docs/06-pr-pii-enforcement.md) | CI checks and branch protection rules to prevent PII in PRs |
 
 ## Related Repos
 
