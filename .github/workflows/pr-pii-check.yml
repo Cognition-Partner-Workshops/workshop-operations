@@ -23,12 +23,22 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           echo "Checking PR description for PII patterns..."
-          # Strip the auto-appended system metadata footer (Devin session link,
-          # requester line, review badge) before checking. These lines are added
-          # by the system and cleaned up by sanitize-pr-pii.sh — we only want to
-          # catch user-authored PII in the PR body itself.
-          USER_BODY=$(printf '%s\n' "$PR_BODY" | sed 's/\r$//' | sed '/^Link to Devin session:/,$d' | sed '/^<!-- devin-review-badge/,$d' | sed '/^Requested by:/d')
-          if printf '%s\n' "$USER_BODY" | grep -qPi 'requested\s+by\s*:\s*\S'; then
+          # Write body to file via printenv to avoid shell interpretation issues
+          printenv PR_BODY > /tmp/pr_body.txt
+          echo "DEBUG: Total lines in PR body: $(wc -l < /tmp/pr_body.txt)"
+          echo "DEBUG: Lines matching 'Link to Devin session':"
+          grep -n 'Link to Devin session:' /tmp/pr_body.txt || echo "  (none)"
+          echo "DEBUG: Lines matching 'Requested by':"
+          grep -n -i 'requested by' /tmp/pr_body.txt || echo "  (none)"
+          # Strip \r line endings and system-appended footer
+          sed -i 's/\r$//' /tmp/pr_body.txt
+          sed -i '/^Link to Devin session:/,$d' /tmp/pr_body.txt
+          sed -i '/^<!-- devin-review-badge/,$d' /tmp/pr_body.txt
+          sed -i '/^[Rr]equested [Bb]y:/d' /tmp/pr_body.txt
+          echo "DEBUG: After stripping, lines matching 'Requested by':"
+          grep -n -i 'requested by' /tmp/pr_body.txt || echo "  (none)"
+          # Check for remaining user-authored PII
+          if grep -qPi 'requested\s+by\s*:\s*\S' /tmp/pr_body.txt; then
             echo "::error::PR description contains 'Requested by' PII. Remove it before merging."
             echo ""
             echo "Found pattern matching 'Requested by: ...' in the PR description."
