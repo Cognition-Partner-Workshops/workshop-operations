@@ -105,9 +105,8 @@ The workflow triggers on:
 
 | Event | What's Checked |
 |-------|---------------|
-| PR opened/edited | PR description (body) |
+| PR opened | PR description (body) |
 | PR synchronized (new push) | PR description (body) |
-| Issue comment created/edited | Comment body (on PRs only) |
 | Review comment created/edited | Comment body |
 
 The pattern matched is `Requested by:` followed by any non-whitespace character (case-insensitive). This catches:
