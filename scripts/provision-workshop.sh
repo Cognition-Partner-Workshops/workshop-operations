@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/lib/manage-org.sh"
 source "${SCRIPT_DIR}/lib/manage-repos.sh"
+source "${SCRIPT_DIR}/lib/manage-members.sh"
 source "${SCRIPT_DIR}/lib/invoke-setup.sh"
 
 # ---------------------------------------------------------------------------
@@ -20,20 +21,26 @@ source "${SCRIPT_DIR}/lib/invoke-setup.sh"
 # ---------------------------------------------------------------------------
 CONFIG_FILE=""
 SKIP_SESSIONS=false
+SKIP_INVITES=false
 EXISTING_ORG_ID=""
+EMAILS_FILE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --config)       CONFIG_FILE="$2"; shift 2 ;;
+    --config)        CONFIG_FILE="$2"; shift 2 ;;
     --skip-sessions) SKIP_SESSIONS=true; shift ;;
-    --org-id)       EXISTING_ORG_ID="$2"; shift 2 ;;
+    --skip-invites)  SKIP_INVITES=true; shift ;;
+    --org-id)        EXISTING_ORG_ID="$2"; shift 2 ;;
+    --emails-file)   EMAILS_FILE="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 --config <config.json> [--skip-sessions] [--org-id <org-id>]"
+      echo "Usage: $0 --config <config.json> [--skip-sessions] [--skip-invites] [--org-id <org-id>] [--emails-file <file>]"
       echo
       echo "Options:"
       echo "  --config <file>     Path to workshop config JSON (required)"
       echo "  --skip-sessions     Skip invoking Devin setup sessions"
+      echo "  --skip-invites      Skip participant invitations"
       echo "  --org-id <id>       Use an existing org instead of creating one"
+      echo "  --emails-file <f>   File with participant emails (one per line)"
       exit 0
       ;;
     *) die "Unknown argument: $1" ;;
@@ -54,6 +61,13 @@ MAX_SESSION_ACU=$(config_get "$CONFIG_FILE" '.max_session_acu_limit // 250')
 MAX_CYCLE_ACU=$(config_get "$CONFIG_FILE" '.max_cycle_acu_limit // 250')
 SETUP_USER_ID=$(config_get "$CONFIG_FILE" '.setup_as_user_id // empty')
 SETUP_PROMPT=$(config_get "$CONFIG_FILE" '.setup_prompt_template')
+ENTERPRISE_ROLE_ID=$(config_get "$CONFIG_FILE" '.enterprise_role_id // empty')
+ORG_ROLE_ID=$(config_get "$CONFIG_FILE" '.org_role_id // empty')
+
+# Use emails file from config if not overridden by CLI
+if [[ -z "$EMAILS_FILE" ]]; then
+  EMAILS_FILE=$(config_get "$CONFIG_FILE" '.emails_file // empty')
+fi
 
 mapfile -t REPOS < <(config_get_array "$CONFIG_FILE" '.repos')
 
@@ -66,7 +80,9 @@ echo "  Git connection : ${GIT_CONNECTION_ID}"
 echo "  Repos          : ${#REPOS[@]}"
 echo "  ACU limits     : session=${MAX_SESSION_ACU}, cycle=${MAX_CYCLE_ACU}"
 echo "  Setup user     : ${SETUP_USER_ID:-none (service user)}"
+echo "  Emails file    : ${EMAILS_FILE:-none}"
 echo "  Skip sessions  : ${SKIP_SESSIONS}"
+echo "  Skip invites   : ${SKIP_INVITES}"
 echo "============================================"
 echo
 
@@ -101,7 +117,34 @@ list_git_permissions "$ORG_ID" | jq -r '.[] | "  \(.repo_path)"'
 echo
 
 # ---------------------------------------------------------------------------
-# Step 3: Invoke Devin setup sessions (one per repo)
+# Step 3: Invite participants
+# ---------------------------------------------------------------------------
+if [[ "$SKIP_INVITES" == "true" ]] || [[ -z "$EMAILS_FILE" ]]; then
+  if [[ -z "$EMAILS_FILE" ]]; then
+    info "No --emails-file provided; skipping invitations"
+  else
+    info "Skipping invitations (--skip-invites)"
+  fi
+else
+  if [[ ! -f "$EMAILS_FILE" ]]; then
+    warn "Emails file not found: ${EMAILS_FILE}; skipping invitations"
+  else
+    mapfile -t PARTICIPANT_EMAILS < <(read_emails_file "$EMAILS_FILE")
+    if [[ ${#PARTICIPANT_EMAILS[@]} -gt 0 ]]; then
+      info "Inviting ${#PARTICIPANT_EMAILS[@]} participant(s)..."
+      ROLE_ARGS=()
+      [[ -n "$ENTERPRISE_ROLE_ID" ]] && ROLE_ARGS+=("--enterprise-role=${ENTERPRISE_ROLE_ID}")
+      [[ -n "$ORG_ROLE_ID" ]] && ROLE_ARGS+=("--org-role=${ORG_ROLE_ID}")
+      invite_and_assign "$ORG_ID" "${PARTICIPANT_EMAILS[@]}" "${ROLE_ARGS[@]}"
+    else
+      info "No emails found in ${EMAILS_FILE}"
+    fi
+  fi
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# Step 4: Invoke Devin setup sessions (one per repo)
 # ---------------------------------------------------------------------------
 if [[ "$SKIP_SESSIONS" == "true" ]]; then
   info "Skipping session creation (--skip-sessions)"
@@ -136,5 +179,6 @@ echo "  Next steps:"
 echo "    1. Monitor setup sessions in the Devin webapp or poll via API"
 echo "    2. Once sessions complete, env config YAMLs are ready for participants"
 echo "    3. Share the workshop org URL with participants"
-echo "    4. After the workshop: ./scripts/teardown-workshop.sh --org-id ${ORG_ID}"
+echo "    4. After the workshop: ./scripts/cleanup-all.sh <GITHUB_ORG>
+    5. Tear down the org:    ./scripts/teardown-workshop.sh --org-id ${ORG_ID}"
 echo

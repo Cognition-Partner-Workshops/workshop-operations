@@ -25,7 +25,7 @@ die()  { err "$@"; exit 1; }
 api_get() {
   local url="$1"
   local response
-  response=$(curl -sfS -w '\n%{http_code}' \
+  response=$(curl -sS -w '\n%{http_code}' \
     -H "Authorization: Bearer ${DEVIN_API_KEY}" \
     -H "Accept: application/json" \
     "${API_BASE}${url}" 2>&1) || true
@@ -48,7 +48,7 @@ api_post() {
   local url="$1"
   local data="$2"
   local response
-  response=$(curl -sfS -w '\n%{http_code}' \
+  response=$(curl -sS -w '\n%{http_code}' \
     -X POST \
     -H "Authorization: Bearer ${DEVIN_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -74,7 +74,7 @@ api_patch() {
   local url="$1"
   local data="$2"
   local response
-  response=$(curl -sfS -w '\n%{http_code}' \
+  response=$(curl -sS -w '\n%{http_code}' \
     -X PATCH \
     -H "Authorization: Bearer ${DEVIN_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -100,7 +100,7 @@ api_put() {
   local url="$1"
   local data="$2"
   local response
-  response=$(curl -sfS -w '\n%{http_code}' \
+  response=$(curl -sS -w '\n%{http_code}' \
     -X PUT \
     -H "Authorization: Bearer ${DEVIN_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -125,7 +125,7 @@ api_put() {
 api_delete() {
   local url="$1"
   local response
-  response=$(curl -sfS -w '\n%{http_code}' \
+  response=$(curl -sS -w '\n%{http_code}' \
     -X DELETE \
     -H "Authorization: Bearer ${DEVIN_API_KEY}" \
     -H "Accept: application/json" \

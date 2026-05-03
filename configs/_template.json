@@ -9,5 +9,8 @@
     "Cognition-Partner-Workshops-mirror/REPO_NAME_2"
   ],
   "setup_as_user_id": "",
-  "setup_prompt_template": "Set up the {repo} repository from scratch: install dependencies, get the build and tests working. Then capture the working setup steps in the .yaml environment configuration.\n\nShould we get the app running: yes"
+  "setup_prompt_template": "Set up the {repo} repository from scratch: install dependencies, get the build and tests working. Then capture the working setup steps in the .yaml environment configuration.\n\nShould we get the app running: yes",
+  "emails_file": "",
+  "enterprise_role_id": "",
+  "org_role_id": ""
 }
