@@ -125,7 +125,7 @@ invite_and_assign() {
 read_emails_file() {
   local file="$1"
   [[ ! -f "$file" ]] && { err "Emails file not found: ${file}"; return 1; }
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n "$line" ]]; do
     line=$(echo "$line" | xargs)
     [[ -n "$line" ]] && [[ ! "$line" =~ ^# ]] && echo "$line"
   done < "$file"

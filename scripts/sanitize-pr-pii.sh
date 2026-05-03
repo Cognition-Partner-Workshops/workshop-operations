@@ -28,7 +28,7 @@ sanitize_text() {
   echo "$text" \
     | sed '/^Link to Devin session:/,$d' \
     | sed '/^<!-- devin-review-badge/,$d' \
-    | sed -E '/^[[:space:]]*[Rr]equested[[:space:]]+[Bb]y[[:space:]]*:[[:space:]]*.*$/d'
+    | sed -E '/^[[:space:]]*[Rr][Ee][Qq][Uu][Ee][Ss][Tt][Ee][Dd][[:space:]]+[Bb][Yy][[:space:]]*:[[:space:]]*.*$/d'
 }
 
 has_pii() {
