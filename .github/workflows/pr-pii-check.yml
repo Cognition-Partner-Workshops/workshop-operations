@@ -28,7 +28,6 @@ jobs:
           # Strip system-appended footers before scanning
           sed -i '/^Link to Devin session:/,$d' /tmp/pr_body.txt
           sed -i '/^<!-- devin-review-badge/,$d' /tmp/pr_body.txt
-          sed -i '/^[Rr]equested [Bb]y:/d' /tmp/pr_body.txt
           if grep -qPi '^\s*requested\s+by\s*:\s*\S' /tmp/pr_body.txt; then
             echo "::error::PR description contains 'Requested by' PII. Remove it before merging."
             echo "To bulk-fix existing PRs: ./scripts/sanitize-pr-pii.sh <ORG>"
