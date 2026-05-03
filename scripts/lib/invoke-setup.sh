@@ -70,7 +70,7 @@ poll_session() {
 
 # ---------------------------------------------------------------------------
 # Create setup sessions for multiple repos.
-# Usage: invoke_setup_sessions <org_id> <git_connection_id> <prompt_template> <user_id> <repo1> [repo2] ...
+# Usage: invoke_setup_sessions <org_id> <prompt_template> <user_id> <repo1> [repo2] ...
 #
 # The prompt_template should contain {repo} as a placeholder, e.g.:
 #   "Set up the {repo} repository from scratch..."
