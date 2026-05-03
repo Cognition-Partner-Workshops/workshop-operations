@@ -41,7 +41,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           echo "Checking comment for PII patterns..."
-          if printf '%s\n' "$COMMENT_BODY" | grep -qPi 'requested\s+by\s*:\s*\S'; then
+          if printf '%s\n' "$COMMENT_BODY" | grep -qPi '^\s*requested\s+by\s*:\s*\S'; then
             echo "::error::Comment contains 'Requested by' PII. Edit the comment to remove it."
             exit 1
           fi
