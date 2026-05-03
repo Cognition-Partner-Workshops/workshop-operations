@@ -63,11 +63,11 @@ for repo in "${REPOS[@]}"; do
   if gh_api "${GITHUB_API}/repos/${TARGET_ORG}/${repo}" >/dev/null 2>&1; then
     echo "  Target repo already exists, updating..."
     cd "${TMPDIR}"
-    git clone --mirror "https://github.com/${SOURCE_ORG}/${repo}.git" "${repo}.git" 2>/dev/null || {
+    git clone --mirror "https://x-access-token:${GITHUB_TOKEN}@github.com/${SOURCE_ORG}/${repo}.git" "${repo}.git" 2>/dev/null || {
       echo "  WARNING: Failed to clone source repo"; continue
     }
     cd "${repo}.git"
-    git remote set-url --push origin "https://github.com/${TARGET_ORG}/${repo}.git"
+    git remote set-url --push origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${TARGET_ORG}/${repo}.git"
     git push --mirror 2>/dev/null || echo "  WARNING: Push failed (may need force push)"
     cd "${TMPDIR}"
     rm -rf "${repo}.git"
@@ -79,11 +79,11 @@ for repo in "${REPOS[@]}"; do
     }
 
     cd "${TMPDIR}"
-    git clone --mirror "https://github.com/${SOURCE_ORG}/${repo}.git" "${repo}.git" 2>/dev/null || {
+    git clone --mirror "https://x-access-token:${GITHUB_TOKEN}@github.com/${SOURCE_ORG}/${repo}.git" "${repo}.git" 2>/dev/null || {
       echo "  WARNING: Failed to clone source repo"; continue
     }
     cd "${repo}.git"
-    git remote set-url --push origin "https://github.com/${TARGET_ORG}/${repo}.git"
+    git remote set-url --push origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${TARGET_ORG}/${repo}.git"
     git push --mirror 2>/dev/null || echo "  WARNING: Push failed"
     cd "${TMPDIR}"
     rm -rf "${repo}.git"
