@@ -1,0 +1,48 @@
+name: PR PII Check
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  pull_request_review_comment:
+    types: [created, edited]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  check-pii:
+    name: Check for PII in PR
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment'
+    steps:
+      - name: Check PR description for PII
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          echo "Checking PR description for PII patterns..."
+          printenv PR_BODY > /tmp/pr_body.txt
+          sed -i 's/\r$//' /tmp/pr_body.txt
+          # Strip system-appended footers before scanning
+          sed -i '/^Link to Devin session:/,$d' /tmp/pr_body.txt
+          sed -i '/^<!-- devin-review-badge/,$d' /tmp/pr_body.txt
+          if grep -qPi '^\s*requested\s+by\s*:\s*\S' /tmp/pr_body.txt; then
+            echo "::error::PR description contains 'Requested by' PII. Remove it before merging."
+            echo "To bulk-fix existing PRs: ./scripts/sanitize-pr-pii.sh <ORG>"
+            exit 1
+          fi
+          echo "No PII found in PR description."
+
+      - name: Check comment for PII
+        if: github.event_name == 'pull_request_review_comment'
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          echo "Checking comment for PII patterns..."
+          if printf '%s\n' "$COMMENT_BODY" | grep -qPi '^\s*requested\s+by\s*:\s*\S'; then
+            echo "::error::Comment contains 'Requested by' PII. Edit the comment to remove it."
+            exit 1
+          fi
+          echo "No PII found in comment."

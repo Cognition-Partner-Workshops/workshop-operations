@@ -1,0 +1,21 @@
+{
+  "event_name": "Hands-on Devin Workshop — Washington, DC (April 2026)",
+  "org_name": "DC-April-2026",
+  "git_connection_id": "git-connection-f76021b797ec4a80a62f8ae9dfc1c45c",
+  "max_session_acu_limit": 250,
+  "max_cycle_acu_limit": 250,
+  "repos": [
+    "Cognition-Partner-Workshops-mirror/ts-angular-realworld-example-app",
+    "Cognition-Partner-Workshops-mirror/uc-framework-upgrade-monolith-to-microservices",
+    "Cognition-Partner-Workshops-mirror/uc-legacy-modernization-cobol-to-java",
+    "Cognition-Partner-Workshops-mirror/uc-data-source-migration-legacy-to-modern",
+    "Cognition-Partner-Workshops-mirror/uc-bdd-test-generation-rest-api",
+    "Cognition-Partner-Workshops-mirror/app_petclinic-angular",
+    "Cognition-Partner-Workshops-mirror/app_timesheet"
+  ],
+  "setup_as_user_id": "google-oauth2|116326913226854769397",
+  "setup_prompt_template": "Set up the {repo} repository from scratch: install dependencies, get the build and tests working. Then capture the working setup steps in the .yaml environment configuration.\n\nShould we get the app running: yes",
+  "emails_file": "",
+  "enterprise_role_id": "",
+  "org_role_id": ""
+}
