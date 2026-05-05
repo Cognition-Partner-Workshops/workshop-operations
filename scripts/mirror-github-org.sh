@@ -60,7 +60,7 @@ done
 
 LOGDIR="./mirror-logs"
 mkdir -p "$LOGDIR"
-LOGFILE="$LOGDIR/mirror-$(date +%Y%m%d-%H%M%S).log"
+LOGFILE="$(cd "$(dirname "$LOGDIR")" && pwd)/$(basename "$LOGDIR")/mirror-$(date +%Y%m%d-%H%M%S).log"
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
