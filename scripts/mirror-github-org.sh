@@ -77,7 +77,7 @@ REPO_NAMES=()
 
 if [[ -n "$CONFIG_FILE" ]]; then
   log "Reading repos from config: ${CONFIG_FILE}"
-  mapfile -t REPO_NAMES < <(jq -r '.repos[] | split("/") | .[1]' "$CONFIG_FILE")
+  while IFS= read -r r; do REPO_NAMES+=("$r"); done < <(jq -r '.repos[] | split("/") | .[1]' "$CONFIG_FILE")
 else
   log "Fetching repos from ${SOURCE_ORG}..."
   page=1
@@ -94,7 +94,8 @@ log "Repos to process: ${#REPO_NAMES[@]}"
 # ---------------------------------------------------------------------------
 # Collect existing target repos (for skip logic)
 # ---------------------------------------------------------------------------
-declare -A TARGET_SET
+TARGET_SET=""
+TARGET_SET_COUNT=0
 if [[ "$SKIP_EXISTING" == "true" ]]; then
   log "Fetching existing repos in ${TARGET_ORG}..."
   page=1
@@ -102,10 +103,13 @@ if [[ "$SKIP_EXISTING" == "true" ]]; then
     repos=$(gh api "orgs/${TARGET_ORG}/repos?per_page=100&page=${page}&type=all" \
       --jq '.[].name' 2>/dev/null) || break
     [[ -z "$repos" ]] && break
-    while IFS= read -r r; do TARGET_SET["$r"]=1; done <<< "$repos"
+    while IFS= read -r r; do
+      TARGET_SET="${TARGET_SET}:${r}:"
+      TARGET_SET_COUNT=$((TARGET_SET_COUNT + 1))
+    done <<< "$repos"
     page=$((page + 1))
   done
-  log "Existing repos in target: ${#TARGET_SET[@]}"
+  log "Existing repos in target: ${TARGET_SET_COUNT}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -136,7 +140,7 @@ for repo_name in "${REPO_NAMES[@]}"; do
     continue
   fi
 
-  if [[ "$SKIP_EXISTING" == "true" && -n "${TARGET_SET[$repo_name]+x}" ]]; then
+  if [[ "$SKIP_EXISTING" == "true" && "$TARGET_SET" == *":${repo_name}:"* ]]; then
     log "SKIP (exists): ${repo_name}"
     skipped=$((skipped + 1))
     continue
