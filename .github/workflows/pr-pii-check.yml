@@ -2,12 +2,15 @@ name: PR PII Check
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, edited, synchronize]
+  issue_comment:
+    types: [created, edited]
   pull_request_review_comment:
     types: [created, edited]
 
 permissions:
   pull-requests: read
+  issues: read
 
 jobs:
   check-pii:
@@ -15,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
       github.event_name == 'pull_request_review_comment'
     steps:
       - name: Check PR description for PII
@@ -35,14 +39,26 @@ jobs:
           fi
           echo "No PII found in PR description."
 
-      - name: Check comment for PII
-        if: github.event_name == 'pull_request_review_comment'
+      - name: Check issue comment for PII
+        if: github.event_name == 'issue_comment'
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          echo "Checking comment for PII patterns..."
+          echo "Checking PR comment for PII patterns..."
           if printf '%s\n' "$COMMENT_BODY" | grep -qPi '^\s*requested\s+by\s*:\s*\S'; then
             echo "::error::Comment contains 'Requested by' PII. Edit the comment to remove it."
             exit 1
           fi
           echo "No PII found in comment."
+
+      - name: Check review comment for PII
+        if: github.event_name == 'pull_request_review_comment'
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          echo "Checking review comment for PII patterns..."
+          if printf '%s\n' "$COMMENT_BODY" | grep -qPi '^\s*requested\s+by\s*:\s*\S'; then
+            echo "::error::Comment contains 'Requested by' PII. Edit the comment to remove it."
+            exit 1
+          fi
+          echo "No PII found in review comment."

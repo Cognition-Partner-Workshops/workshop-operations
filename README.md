@@ -74,6 +74,7 @@ operator/
 │   ├── close-old-prs.sh              # Close open PRs older than N weeks
 │   ├── delete-stale-branches.sh       # Delete branches with no recent commits
 │   ├── deploy-pr-pii-check.sh        # Deploy PII check CI workflow to all repos
+│   ├── create-pii-scrub-schedule.sh   # Create a scheduled Devin session for weekly PII scrubbing
 │   └── lib/
 │       ├── common.sh                  # Shared functions (API calls, logging, config)
 │       ├── manage-org.sh             # Create/update/delete/list organizations
@@ -205,7 +206,82 @@ To prevent participant PII from leaking into PR descriptions across workshop rep
 ./scripts/deploy-pr-pii-check.sh Cognition-Partner-Workshops-mirror --dry-run
 ```
 
-This creates a PR in each repo adding a GitHub Actions workflow that fails if PR descriptions or review comments contain `Requested by:` PII patterns.
+This creates a PR in each repo adding a GitHub Actions workflow that fails if PR descriptions, issue comments, or review comments contain `Requested by:` PII patterns. The workflow triggers on:
+- PR opened, edited, or synchronized
+- Issue/PR comments created or edited
+- Review comments created or edited
+
+#### 1.6 Configure Commit Authorship (Devin Only)
+
+To prevent participant emails from leaking into git history, configure Devin to always commit as itself rather than the requesting user. This is done via a **Knowledge note** that applies to all sessions in the workshop org:
+
+**Knowledge Note Setup** (Settings → Knowledge in the Devin webapp, or via API):
+
+| Field | Value |
+|---|---|
+| **Name** | `Commit authorship — Devin only` |
+| **Trigger** | `When making git commits in any repository` |
+| **Body** | See below |
+
+```
+Always use the default Devin git identity for commits. Do NOT configure
+git user.name or user.email to match the requesting user. The default
+commit author should remain as "Devin AI <devin-ai-integration[bot]@users.noreply.github.com>".
+
+Never include the requesting user's name or email in commit messages,
+PR descriptions, or branch names.
+```
+
+You can create this via the API:
+
+```bash
+curl -X POST "https://api.devin.ai/v3/organizations/${DEVIN_ORG_ID}/knowledge" \
+  -H "Authorization: Bearer ${DEVIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Commit authorship — Devin only",
+    "trigger": "When making git commits in any repository",
+    "body": "Always use the default Devin git identity for commits. Do NOT configure git user.name or user.email to match the requesting user. The default commit author should remain as \"Devin AI <devin-ai-integration[bot]@users.noreply.github.com>\".\n\nNever include the requesting user'\''s name or email in commit messages, PR descriptions, or branch names."
+  }'
+```
+
+> **Note:** Devin's default behavior already commits as `devin-ai-integration[bot]`. This Knowledge note acts as a guardrail to prevent sessions from overriding the author (e.g., if a user's prompt asks to set `git config user.email`).
+
+#### 1.7 Set Up Scheduled PII Scrubbing
+
+Even with the CI check in place, PII can slip into PR comments (which aren't blocked by status checks). Set up a recurring Devin session to run `sanitize-pr-pii.sh` weekly:
+
+```bash
+# Create a weekly schedule (Monday 9am UTC)
+./scripts/create-pii-scrub-schedule.sh Cognition-Partner-Workshops-mirror \
+  --org-id=org-xxxxx
+
+# Custom cron (e.g., every Sunday at midnight UTC)
+./scripts/create-pii-scrub-schedule.sh Cognition-Partner-Workshops-mirror \
+  --org-id=org-xxxxx \
+  --cron="0 0 * * 0"
+
+# Preview without creating
+./scripts/create-pii-scrub-schedule.sh Cognition-Partner-Workshops-mirror \
+  --org-id=org-xxxxx \
+  --dry-run
+```
+
+Alternatively, create the schedule directly via the Devin webapp:
+1. Go to **Settings → Schedules** in the target org
+2. Click **New Schedule**
+3. Set frequency to weekly (e.g., `0 9 * * 1`)
+4. Use this prompt:
+   ```
+   Run the PII sanitization script against the Cognition-Partner-Workshops-mirror
+   GitHub organization.
+
+   Steps:
+   1. Clone the operator repo: git clone https://github.com/Cognition-Partner-Workshops/operator.git
+   2. Run: ./scripts/sanitize-pr-pii.sh Cognition-Partner-Workshops-mirror
+   3. Report the results (repos scanned, edits made)
+   ```
+5. Set **Notify on** to "failure" so you're alerted if scrubbing fails
 
 ### Phase 2: Workshop Day
 
@@ -253,6 +329,28 @@ All cleanup scripts support `--dry-run` and write logs to `./cleanup-logs/`.
 This:
 1. **Clears all git permissions** from the org
 2. **Optionally deletes the org** (with `--delete-org` flag and a 5-second confirmation delay)
+
+## PII Protection Summary
+
+This repo provides a layered approach to preventing participant PII from leaking in workshop environments:
+
+| Layer | Mechanism | Coverage | When |
+|---|---|---|---|
+| **Commit authorship** | Knowledge note (§1.6) | Git history | Every commit (preventive) |
+| **CI check** | `pr-pii-check.yml` (§1.5) | PR descriptions + comments | On PR activity (detective) |
+| **Bulk scrub** | `sanitize-pr-pii.sh` (§3.1) | All PRs in an org | On-demand / post-workshop |
+| **Scheduled scrub** | `create-pii-scrub-schedule.sh` (§1.7) | All PRs in an org | Weekly recurring (automated) |
+
+**What gets detected/removed:**
+- `Requested by: @username` or `Requested by: email@...` lines
+- `Link to Devin session:` footer blocks (which may contain user identifiers)
+- `<!-- devin-review-badge` metadata blocks
+
+**Recommended setup order:**
+1. Deploy the CI workflow to all repos (`deploy-pr-pii-check.sh`)
+2. Configure commit authorship knowledge note
+3. Create the weekly scrub schedule
+4. Run an initial bulk scrub to clean existing PRs
 
 ## API Reference Cheatsheet
 
