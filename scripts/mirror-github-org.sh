@@ -17,6 +17,8 @@
 #   --visibility=<v>       Target repo visibility: public, private (default: private)
 #   --strip-workflows      Remove .github/workflows/ from all branches (default)
 #   --no-strip-workflows   Keep workflows as-is
+#   --deploy-pii-check     Add the reference pr-pii-check.yml workflow to mirrored repos
+#   --no-deploy-pii-check  Skip PII check deployment (default)
 #   --config=<file>        Read repo list from a workshop config JSON instead of listing the source org
 #
 # Prerequisites:
@@ -37,6 +39,7 @@ EXCLUDE_PATTERN=""
 SKIP_EXISTING=true
 VISIBILITY="private"
 STRIP_WORKFLOWS=true
+DEPLOY_PII_CHECK=false
 CONFIG_FILE=""
 
 for arg in "$@"; do
@@ -49,6 +52,8 @@ for arg in "$@"; do
     --visibility=*)        VISIBILITY="${arg#*=}" ;;
     --strip-workflows)     STRIP_WORKFLOWS=true ;;
     --no-strip-workflows)  STRIP_WORKFLOWS=false ;;
+    --deploy-pii-check)    DEPLOY_PII_CHECK=true ;;
+    --no-deploy-pii-check) DEPLOY_PII_CHECK=false ;;
     --config=*)            CONFIG_FILE="${arg#*=}" ;;
     -h|--help)
       sed -n '2,/^[^#]/{ /^#/s/^# \?//p }' "$0"
@@ -66,9 +71,17 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$LOGFILE"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PII_CHECK_SRC="${SCRIPT_DIR}/../.github/workflows/pr-pii-check.yml"
+
+if [[ "$DEPLOY_PII_CHECK" == "true" && ! -f "$PII_CHECK_SRC" ]]; then
+  echo "ERROR: --deploy-pii-check requested but workflow not found at ${PII_CHECK_SRC}" >&2
+  exit 1
+fi
+
 log "=== GitHub Org Mirror ==="
 log "Source: ${SOURCE_ORG} -> Target: ${TARGET_ORG}"
-log "Visibility: ${VISIBILITY} | Strip workflows: ${STRIP_WORKFLOWS} | Dry run: ${DRY_RUN}"
+log "Visibility: ${VISIBILITY} | Strip workflows: ${STRIP_WORKFLOWS} | Deploy PII check: ${DEPLOY_PII_CHECK} | Dry run: ${DRY_RUN}"
 
 # ---------------------------------------------------------------------------
 # Collect repo names
@@ -184,9 +197,36 @@ for repo_name in "${REPO_NAMES[@]}"; do
       fi
     done
 
+    # Optionally add the PII check workflow to the default branch
+    if [[ "$DEPLOY_PII_CHECK" == "true" ]]; then
+      git checkout "$default_branch" 2>>"$LOGFILE"
+      mkdir -p .github/workflows
+      cp "$PII_CHECK_SRC" .github/workflows/pr-pii-check.yml
+      git add .github/workflows/pr-pii-check.yml
+      git commit -m "Add PR PII check workflow (reference implementation)" 2>>"$LOGFILE" || true
+      log "  Added PII check workflow to ${repo_name}"
+    fi
+
     git checkout "$default_branch" 2>>"$LOGFILE"
     cd - >/dev/null
 
+    rm -rf "$clone_dir"
+    git clone --bare "$local_dir" "$clone_dir" 2>>"$LOGFILE"
+    rm -rf "$local_dir"
+  fi
+
+  # Deploy PII check even when not stripping workflows (standalone)
+  if [[ "$DEPLOY_PII_CHECK" == "true" && "$STRIP_WORKFLOWS" != "true" ]]; then
+    local_dir="${WORK_DIR}/${repo_name}-pii"
+    git clone "$clone_dir" "$local_dir" 2>>"$LOGFILE"
+    cd "$local_dir"
+    git checkout "$default_branch" 2>>"$LOGFILE"
+    mkdir -p .github/workflows
+    cp "$PII_CHECK_SRC" .github/workflows/pr-pii-check.yml
+    git add .github/workflows/pr-pii-check.yml
+    git commit -m "Add PR PII check workflow (reference implementation)" 2>>"$LOGFILE" || true
+    log "  Added PII check workflow to ${repo_name}"
+    cd - >/dev/null
     rm -rf "$clone_dir"
     git clone --bare "$local_dir" "$clone_dir" 2>>"$LOGFILE"
     rm -rf "$local_dir"
