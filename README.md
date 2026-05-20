@@ -72,7 +72,7 @@ operator/
 │   └── dc-april-2026.json            # Example: DC April 2026 workshop
 ├── scripts/
 │   ├── verify-auth.sh                 # Verify API key and list enterprise state
-│   ├── provision-workshop.sh          # End-to-end: create org → permissions → invites → sessions
+│   ├── provision-workshop.sh          # End-to-end: create org → permissions → env blueprints → sessions
 │   ├── teardown-workshop.sh           # Remove org and clean up permissions
 │   ├── invite-participants.sh         # Invite users by email to an org
 │   ├── mirror-github-org.sh           # Mirror repos between GitHub orgs
@@ -160,14 +160,17 @@ Copy `configs/_template.json` and fill in the event details:
 #### 1.3 Provision the Workshop
 
 ```bash
-# Full provisioning (creates org, sets permissions, invites participants, runs setup sessions)
+# Full provisioning (creates org, sets permissions, invites, env blueprints, setup sessions)
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json
 
 # Use an existing org (updates ACU limits, re-sets permissions)
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json --org-id org-existing-id
 
-# Skip sessions if env configs are already set up
+# Skip per-repo setup sessions if env configs are already set up
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-sessions
+
+# Skip env blueprint auto-creation (repos already indexed)
+./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-env-setup
 
 # Skip invitations (do them separately later)
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-invites
@@ -180,8 +183,9 @@ This script:
 1. **Creates a new Devin org** with the configured name and ACU limits
 2. **Adds git permissions** for each repo in the config, scoped to the new org
 3. **Invites participants** from the emails file (enterprise invite + org assignment)
-4. **Invokes Devin sessions** (one per repo) to set up the environment config YAML
-5. **Outputs** the org ID, session URLs, and a summary
+4. **Dispatches an env blueprint session** — a single Devin session that auto-creates environment YAML config blueprints for all repos (indexes the repos)
+5. **Invokes per-repo setup sessions** to do any repo-specific setup defined by the prompt template
+6. **Outputs** the org ID, session URLs, and a summary
 
 #### 1.4 Invite Participants Separately
 
