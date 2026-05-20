@@ -5,24 +5,31 @@ Automate the provisioning and teardown of Devin Enterprise workshops using the D
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   Devin Enterprise                          │
-│                                                             │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   │
-│  │  Source Org   │   │  Mirror Org  │   │  Workshop Org│   │
-│  │  (Demo)       │   │  (template)  │   │  (per-event) │   │
-│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘   │
-│         │                  │                   │            │
-│         ▼                  ▼                   ▼            │
-│  Cognition-Partner-  Cognition-Partner-   Created per      │
-│  Workshops (GH org)  Workshops-mirror     workshop via API │
-│                      (GH org)                              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                       Devin Enterprise                               │
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │  Source Org   │  │  Mirror Org  │  │  Workshop Org│  (per-event)  │
+│  │  (GH org)     │  │  (GH org)    │  │  (Devin org) │               │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
+│         │                 │                  │                        │
+│         ▼                 ▼                  ▼                        │
+│  Cognition-Partner-  Cognition-Partner-  Created per workshop        │
+│  Workshops           Workshops-mirror    via API; ephemeral          │
+│                                                                      │
+│  ┌────────────────────────────────────┐                              │
+│  │  Workshop Operations Org           │  (long-lived Devin org)      │
+│  │  - Scheduled PII scrubs            │                              │
+│  │  - Event lifecycle automation      │                              │
+│  │  - Enterprise service user secret  │                              │
+│  └────────────────────────────────────┘                              │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 **Source org** (`Cognition-Partner-Workshops`) — canonical repos with workshop content.
 **Mirror org** (`Cognition-Partner-Workshops-mirror`) — GitHub org with mirrored repos that the Devin Enterprise GitHub App is installed on. Repos here are copied from the source org before each event.
 **Workshop org** — a Devin org created per workshop event via API. Participants use this org. It gets git permissions scoped to the mirror GitHub org repos, ACU limits, and environment configs set up by Devin sessions.
+**Workshop Operations org** — a long-lived Devin org hosting recurring and one-time scheduled sessions for maintenance and event lifecycle automation. See [Workshop Operations Devin Org](#workshop-operations-devin-org).
 
 ## Prerequisites
 
@@ -65,7 +72,7 @@ operator/
 │   └── dc-april-2026.json            # Example: DC April 2026 workshop
 ├── scripts/
 │   ├── verify-auth.sh                 # Verify API key and list enterprise state
-│   ├── provision-workshop.sh          # End-to-end: create org → permissions → invites → sessions
+│   ├── provision-workshop.sh          # End-to-end: create org → permissions → env blueprints → sessions
 │   ├── teardown-workshop.sh           # Remove org and clean up permissions
 │   ├── invite-participants.sh         # Invite users by email to an org
 │   ├── mirror-github-org.sh           # Mirror repos between GitHub orgs
@@ -73,7 +80,7 @@ operator/
 │   ├── sanitize-pr-pii.sh            # Remove "Requested by" PII from PRs
 │   ├── close-old-prs.sh              # Close open PRs older than N weeks
 │   ├── delete-stale-branches.sh       # Delete branches with no recent commits
-│   ├── deploy-pr-pii-check.sh        # Deploy PII check CI workflow to all repos
+│   ├── deploy-pr-pii-check.sh        # Deploy PII check CI workflow to repos (standalone)
 │   └── lib/
 │       ├── common.sh                  # Shared functions (API calls, logging, config)
 │       ├── manage-org.sh             # Create/update/delete/list organizations
@@ -111,7 +118,7 @@ Repos from `Cognition-Partner-Workshops` must exist in `Cognition-Partner-Worksh
   --dry-run
 ```
 
-Options: `--include=<glob>`, `--exclude=<glob>`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--config=<file>`.
+Options: `--include=<glob>`, `--exclude=<glob>`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--deploy-pii-check`, `--config=<file>`.
 
 #### 1.2 Create a Workshop Config
 
@@ -153,14 +160,17 @@ Copy `configs/_template.json` and fill in the event details:
 #### 1.3 Provision the Workshop
 
 ```bash
-# Full provisioning (creates org, sets permissions, invites participants, runs setup sessions)
+# Full provisioning (creates org, sets permissions, invites, env blueprints, setup sessions)
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json
 
 # Use an existing org (updates ACU limits, re-sets permissions)
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json --org-id org-existing-id
 
-# Skip sessions if env configs are already set up
+# Skip per-repo setup sessions if env configs are already set up
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-sessions
+
+# Skip env blueprint auto-creation (repos already indexed)
+./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-env-setup
 
 # Skip invitations (do them separately later)
 ./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-invites
@@ -173,8 +183,9 @@ This script:
 1. **Creates a new Devin org** with the configured name and ACU limits
 2. **Adds git permissions** for each repo in the config, scoped to the new org
 3. **Invites participants** from the emails file (enterprise invite + org assignment)
-4. **Invokes Devin sessions** (one per repo) to set up the environment config YAML
-5. **Outputs** the org ID, session URLs, and a summary
+4. **Dispatches an env blueprint session** — a single Devin session that auto-creates environment YAML config blueprints for all repos (indexes the repos)
+5. **Invokes per-repo setup sessions** to do any repo-specific setup defined by the prompt template
+6. **Outputs** the org ID, session URLs, and a summary
 
 #### 1.4 Invite Participants Separately
 
@@ -190,12 +201,26 @@ If you skipped invitations during provisioning or need to add participants later
 
 The emails file format is one email per line; blank lines and `#` comments are ignored.
 
-#### 1.5 Deploy PII Check Workflow
+#### 1.5 Deploy PII Check Workflow (Optional)
 
-To prevent participant PII from leaking into PR descriptions across workshop repos:
+A reference GitHub Actions workflow (`.github/workflows/pr-pii-check.yml`) is included in this repo. It blocks PRs that contain `Requested by:` PII patterns in descriptions, issue comments, or review comments.
+
+**Option A — Deploy during mirroring:**
 
 ```bash
-# Deploy to all repos in the mirror org
+# Mirror repos AND deploy the PII check workflow in one step
+./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
+  --deploy-pii-check
+
+# Mirror without the PII check (default behavior)
+./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
+  --no-deploy-pii-check
+```
+
+**Option B — Deploy to existing repos separately:**
+
+```bash
+# Deploy to all repos in the org
 ./scripts/deploy-pr-pii-check.sh Cognition-Partner-Workshops-mirror
 
 # Deploy to specific repos only
@@ -205,7 +230,44 @@ To prevent participant PII from leaking into PR descriptions across workshop rep
 ./scripts/deploy-pr-pii-check.sh Cognition-Partner-Workshops-mirror --dry-run
 ```
 
-This creates a PR in each repo adding a GitHub Actions workflow that fails if PR descriptions or review comments contain `Requested by:` PII patterns.
+The workflow triggers on:
+- PR opened, edited, or synchronized
+- Issue/PR comments created or edited
+- Review comments created or edited
+
+This configuration changes infrequently; it can be applied via a manual Devin session when needed.
+
+#### 1.6 Configure Commit Authorship (Devin Only)
+
+Devin's default behavior already commits as `devin-ai-integration[bot]`. To add a guardrail preventing sessions from overriding the author (e.g., if a user's prompt asks to set `git config user.email`), create a **Knowledge note** in the workshop org:
+
+| Field | Value |
+|---|---|
+| **Name** | `Commit authorship — Devin only` |
+| **Trigger** | `When making git commits in any repository` |
+| **Body** | See below |
+
+```
+Always use the default Devin git identity for commits. Do NOT configure
+git user.name or user.email to match the requesting user. The default
+commit author should remain as "Devin AI <devin-ai-integration[bot]@users.noreply.github.com>".
+
+Never include the requesting user's name or email in commit messages,
+PR descriptions, or branch names.
+```
+
+Create this via the Devin webapp (**Settings → Knowledge → New Note**) or via the [v3 Knowledge API](https://docs.devin.ai/api-reference/v3/knowledge):
+
+```bash
+curl -X POST "https://api.devin.ai/v3/organizations/${DEVIN_ORG_ID}/knowledge" \
+  -H "Authorization: Bearer ${DEVIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Commit authorship — Devin only",
+    "trigger": "When making git commits in any repository",
+    "body": "Always use the default Devin git identity for commits. Do NOT configure git user.name or user.email to match the requesting user. The default commit author should remain as \"Devin AI <devin-ai-integration[bot]@users.noreply.github.com>\".\n\nNever include the requesting user'\''s name or email in commit messages, PR descriptions, or branch names."
+  }'
+```
 
 ### Phase 2: Workshop Day
 
@@ -253,6 +315,109 @@ All cleanup scripts support `--dry-run` and write logs to `./cleanup-logs/`.
 This:
 1. **Clears all git permissions** from the org
 2. **Optionally deletes the org** (with `--delete-org` flag and a 5-second confirmation delay)
+
+## Workshop Operations Devin Org
+
+Every customer enterprise hosting workshops should create a dedicated **Workshop Operations** Devin org. This org serves as the control plane for all workshop lifecycle automation.
+
+### Purpose
+
+The Workshop Operations org hosts:
+- **Recurring scheduled Devin sessions** for ongoing maintenance (e.g., weekly PII scrubbing)
+- **One-time scheduled Devin sessions** for event lifecycle events (e.g., zeroing ACU limits at event conclusion)
+- **Manual Devin sessions** for ad-hoc operations (e.g., deploying CI workflows, mirroring repos)
+
+All sessions in this org have access to the reference scripts in this repository.
+
+### Setup
+
+1. **Create the org** via the Devin Enterprise webapp or API:
+   ```bash
+   curl -X POST "https://api.devin.ai/v3/enterprise/organizations" \
+     -H "Authorization: Bearer ${DEVIN_API_KEY}" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "Workshop Operations", "max_session_acu_limit": 50, "max_cycle_acu_limit": 500}'
+   ```
+
+2. **Add an org secret** with the enterprise service user API key:
+   - Go to **Settings → Secrets** in the Workshop Operations org
+   - Create a secret named `DEVIN_API_KEY` with the `cog_`-prefixed enterprise service user key
+   - This key needs: `ManageOrganizations`, `ManageGitIntegrations`, `ManageOrgSessions`, `ImpersonateOrgSessions`, `ManageAccountMembership`
+
+3. **Grant git permissions** for this operator repo so Devin sessions can clone it
+
+4. **Create a Knowledge note** (optional) so sessions know the org context:
+   | Field | Value |
+   |---|---|
+   | **Name** | `Workshop Operations context` |
+   | **Trigger** | `When running workshop operations or maintenance tasks` |
+   | **Body** | `This is the Workshop Operations org. Use the operator repo (Cognition-Partner-Workshops/operator) for reference scripts. The DEVIN_API_KEY org secret contains the enterprise service user key for API operations.` |
+
+### Recurring Schedules
+
+Create schedules using the [Devin v3 Schedules API](https://docs.devin.ai/api-reference/v3/schedules/organizations-schedules.md) or from within a Devin session via MCP (`devin_schedule_manage`).
+
+**Weekly PII Scrub** — scrubs `Requested by` PII from all PRs across the mirror org:
+
+```bash
+curl -X POST "https://api.devin.ai/v3/organizations/${OPS_ORG_ID}/schedules" \
+  -H "Authorization: Bearer ${DEVIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Weekly PII Scrub",
+    "prompt": "Clone the operator repo (Cognition-Partner-Workshops/operator) and run: ./scripts/sanitize-pr-pii.sh Cognition-Partner-Workshops-mirror\n\nReport the number of repos scanned and edits made.",
+    "frequency": "0 9 * * 1",
+    "schedule_type": "recurring",
+    "notify_on": "failure"
+  }'
+```
+
+Or via the Devin webapp: **Settings → Schedules → New Schedule** with cron `0 9 * * 1`.
+
+A Devin session running in the Workshop Operations org can also create this schedule via MCP:
+```
+Use the devin_schedule_manage MCP tool to create a recurring schedule named
+"Weekly PII Scrub" with cron "0 9 * * 1" that runs sanitize-pr-pii.sh
+against the Cognition-Partner-Workshops-mirror org.
+```
+
+### One-Time Event Schedules
+
+**End-of-event ACU zeroing** — schedule a one-time session to set the workshop org's ACU limit to 0 at event conclusion:
+
+From within a Devin session in the Workshop Operations org, use MCP to create a one-time scheduled session:
+
+```
+Use the devin_schedule_manage MCP tool to create a one-time schedule named
+"Zero ACU - <Event Name>" scheduled for <end_datetime_iso8601> that updates
+the workshop org <org_id> to set max_cycle_acu_limit to 0, preventing any
+further sessions from running.
+```
+
+This is preferred over calling the API directly because the Devin session handles auth via the org's `DEVIN_API_KEY` secret and can use the MCP tool natively.
+
+## PII Protection Summary
+
+This repo provides a layered approach to preventing participant PII from leaking in workshop environments:
+
+| Layer | Mechanism | Coverage | When |
+|---|---|---|---|
+| **Commit authorship** | Knowledge note (§1.6) | Git history | Every commit (preventive) |
+| **CI check** | `pr-pii-check.yml` (§1.5) | PR descriptions + comments | On PR activity (detective) |
+| **Bulk scrub** | `sanitize-pr-pii.sh` (§3.1) | All PRs in an org | On-demand / post-workshop |
+| **Scheduled scrub** | v3 Schedules API | All PRs in an org | Weekly recurring (automated) |
+
+**What gets detected/removed:**
+- `Requested by: @username` or `Requested by: email@...` lines
+- `Link to Devin session:` footer blocks (which may contain user identifiers)
+- `<!-- devin-review-badge` metadata blocks
+
+**Recommended setup order:**
+1. Create the Workshop Operations Devin org with the enterprise service user secret
+2. Deploy the CI workflow to repos (during mirroring with `--deploy-pii-check` or standalone)
+3. Configure commit authorship knowledge note in each workshop org
+4. Create the weekly PII scrub schedule in the Workshop Operations org
+5. Run an initial bulk scrub to clean existing PRs
 
 ## API Reference Cheatsheet
 

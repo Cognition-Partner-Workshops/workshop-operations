@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # provision-workshop.sh — End-to-end workshop provisioning
 #
-# Creates a Devin org, sets git permissions for workshop repos, and invokes
-# Devin sessions to set up environment config YAMLs for each repo.
+# Creates a Devin org, sets git permissions for workshop repos, dispatches an
+# environment blueprint auto-creation session to index all repos, and invokes
+# per-repo Devin setup sessions.
 #
 # Usage:
 #   ./provision-workshop.sh --config configs/dc-april-2026.json
@@ -22,23 +23,26 @@ source "${SCRIPT_DIR}/lib/invoke-setup.sh"
 CONFIG_FILE=""
 SKIP_SESSIONS=false
 SKIP_INVITES=false
+SKIP_ENV_SETUP=false
 EXISTING_ORG_ID=""
 EMAILS_FILE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --config)        CONFIG_FILE="$2"; shift 2 ;;
-    --skip-sessions) SKIP_SESSIONS=true; shift ;;
-    --skip-invites)  SKIP_INVITES=true; shift ;;
-    --org-id)        EXISTING_ORG_ID="$2"; shift 2 ;;
-    --emails-file)   EMAILS_FILE="$2"; shift 2 ;;
+    --config)         CONFIG_FILE="$2"; shift 2 ;;
+    --skip-sessions)  SKIP_SESSIONS=true; shift ;;
+    --skip-invites)   SKIP_INVITES=true; shift ;;
+    --skip-env-setup) SKIP_ENV_SETUP=true; shift ;;
+    --org-id)         EXISTING_ORG_ID="$2"; shift 2 ;;
+    --emails-file)    EMAILS_FILE="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 --config <config.json> [--skip-sessions] [--skip-invites] [--org-id <org-id>] [--emails-file <file>]"
+      echo "Usage: $0 --config <config.json> [--skip-sessions] [--skip-invites] [--skip-env-setup] [--org-id <org-id>] [--emails-file <file>]"
       echo
       echo "Options:"
       echo "  --config <file>     Path to workshop config JSON (required)"
       echo "  --skip-sessions     Skip invoking Devin setup sessions"
       echo "  --skip-invites      Skip participant invitations"
+      echo "  --skip-env-setup    Skip dispatching env blueprint auto-creation session"
       echo "  --org-id <id>       Use an existing org instead of creating one"
       echo "  --emails-file <f>   File with participant emails (one per line)"
       exit 0
@@ -82,6 +86,7 @@ echo "  ACU limits     : session=${MAX_SESSION_ACU}, cycle=${MAX_CYCLE_ACU}"
 echo "  Setup user     : ${SETUP_USER_ID:-none (service user)}"
 echo "  Emails file    : ${EMAILS_FILE:-none}"
 echo "  Skip sessions  : ${SKIP_SESSIONS}"
+echo "  Skip env setup : ${SKIP_ENV_SETUP}"
 echo "  Skip invites   : ${SKIP_INVITES}"
 echo "============================================"
 echo
@@ -144,7 +149,54 @@ fi
 echo
 
 # ---------------------------------------------------------------------------
-# Step 4: Invoke Devin setup sessions (one per repo)
+# Step 4: Dispatch env blueprint auto-creation session
+# ---------------------------------------------------------------------------
+ENV_SESSION_ID=""
+if [[ "$SKIP_ENV_SETUP" == "true" ]]; then
+  info "Skipping env blueprint session (--skip-env-setup)"
+else
+  info "Dispatching environment blueprint auto-creation session..."
+
+  # Build a repo list for the prompt
+  REPO_LIST=""
+  for repo in "${REPOS[@]}"; do
+    REPO_LIST="${REPO_LIST}
+- ${repo}"
+  done
+
+  ENV_PROMPT="Create Devin environment YAML config blueprints for all repositories in this organization. \
+The repos to configure are:
+${REPO_LIST}
+
+For each repo:
+1. Read the README and any setup docs (package.json, pyproject.toml, Makefile, etc.)
+2. Create an environment blueprint with appropriate initialize and maintenance sections
+3. Add knowledge entries for lint, test, and startup commands where discoverable
+
+Do NOT start services in the initialize section — only install tools and dependencies. \
+Use incremental dependency commands in maintenance (e.g. npm install, not npm ci)."
+
+  env_session_json=$(create_session "$ORG_ID" "$ENV_PROMPT" "$SETUP_USER_ID") || {
+    warn "Failed to create env blueprint session — continuing with remaining steps"
+  }
+
+  if [[ -n "$env_session_json" ]]; then
+    ENV_SESSION_ID=$(echo "$env_session_json" | jq -r '.session_id')
+    ENV_SESSION_URL=$(echo "$env_session_json" | jq -r '.url')
+    echo
+    echo "============================================"
+    echo "  Env Blueprint Session"
+    echo "============================================"
+    echo "  Session: ${ENV_SESSION_ID}"
+    echo "  URL:     ${ENV_SESSION_URL}"
+    echo "  Task:    Auto-create environment config blueprints for all repos"
+    echo "============================================"
+  fi
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# Step 5: Invoke Devin setup sessions (one per repo)
 # ---------------------------------------------------------------------------
 if [[ "$SKIP_SESSIONS" == "true" ]]; then
   info "Skipping session creation (--skip-sessions)"
@@ -171,14 +223,18 @@ echo "============================================"
 echo "  Org ID         : ${ORG_ID}"
 echo "  Org name       : ${ORG_NAME}"
 echo "  Repos          : ${#REPOS[@]}"
+if [[ -n "$ENV_SESSION_ID" ]]; then
+  echo "  Env blueprint  : ${ENV_SESSION_ID}"
+fi
 if [[ "$SKIP_SESSIONS" != "true" ]]; then
-  echo "  Sessions       : $(echo "$sessions_json" | jq length)"
+  echo "  Setup sessions : $(echo "$sessions_json" | jq length)"
 fi
 echo
 echo "  Next steps:"
-echo "    1. Monitor setup sessions in the Devin webapp or poll via API"
-echo "    2. Once sessions complete, env config YAMLs are ready for participants"
-echo "    3. Share the workshop org URL with participants"
-echo "    4. After the workshop: ./scripts/cleanup-all.sh <GITHUB_ORG>
-    5. Tear down the org:    ./scripts/teardown-workshop.sh --org-id ${ORG_ID}"
+echo "    1. Monitor the env blueprint session — it will create environment configs for all repos"
+echo "    2. Monitor setup sessions in the Devin webapp or poll via API"
+echo "    3. Once sessions complete, repos are indexed and ready for participants"
+echo "    4. Share the workshop org URL with participants"
+echo "    5. After the workshop: ./scripts/cleanup-all.sh <GITHUB_ORG>"
+echo "    6. Tear down the org: ./scripts/teardown-workshop.sh --org-id ${ORG_ID}"
 echo
