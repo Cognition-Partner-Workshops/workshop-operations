@@ -160,7 +160,8 @@ else
   # Build a repo list for the prompt
   REPO_LIST=""
   for repo in "${REPOS[@]}"; do
-    REPO_LIST="${REPO_LIST}\n- ${repo}"
+    REPO_LIST="${REPO_LIST}
+- ${repo}"
   done
 
   ENV_PROMPT="Create Devin environment YAML config blueprints for all repositories in this organization. \
