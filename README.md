@@ -1,6 +1,14 @@
 # Workshop Operator Guide
 
-Automate the provisioning and teardown of Devin Enterprise workshops using the Devin v3 API. This repo contains scripts and documentation for workshop hosts who need to stand up isolated participant environments backed by a mirror GitHub org.
+Everything a **workshop facilitator or host** needs to plan, provision, run, and tear down a Devin Enterprise workshop. This repo contains:
+
+- **Provisioning scripts** — create mirror orgs, workshop orgs, participant invites, and environment configs via the Devin v3 API
+- **Facilitator guides** — day-of logistics, pacing tips, common issues, format variations
+- **Workshop design docs** — how to create modules, workshops, and events; quality checklist; repo naming conventions
+- **General themes** — positioning narratives, architecture strengths, platform capabilities, value framing
+- **Module facilitator notes** — per-module setup, MCP configuration, and presales positioning
+
+> **Looking for the hands-on lab content?** Attendee-facing modules, workshops, and prompts live in the [workshop-metadata](https://github.com/Cognition-Partner-Workshops/workshop-metadata) repo. This repo is for the people running the event, not the people attending it.
 
 ## Architecture Overview
 
@@ -82,8 +90,26 @@ operator/
 │       └── invoke-setup.sh           # Create Devin sessions to configure env YAML
 ├── .github/workflows/
 │   └── pr-pii-check.yml             # CI workflow to block PRs with PII
+├── templates/
+│   └── event-readme.md               # Template for new event READMEs
 └── docs/
-    └── api-reference-cheatsheet.md    # Quick reference for all v3 API endpoints used
+    ├── api-reference-cheatsheet.md    # Quick reference for all v3 API endpoints used
+    ├── facilitator-guide.md           # Day-of logistics, pacing, common issues
+    ├── workshop-design-guide.md       # How to create modules, workshops, events
+    ├── quality-checklist.md           # Quality standards for workshop content
+    ├── repo-naming-convention.md      # Repo naming rules for the GH org
+    ├── runtime-resources.md           # Provisioning hosted apps for events
+    ├── general-themes/                # Positioning narratives for facilitators
+    │   ├── README.md
+    │   ├── when-to-use-devin.md
+    │   ├── architecture-strengths.md
+    │   ├── design-patterns-for-devin.md
+    │   ├── platform-capabilities.md
+    │   ├── collaboration-model.md
+    │   └── value-narratives.md
+    └── module-facilitator-notes/      # Per-module facilitator companions
+        ├── data-engineering/          # 9 facilitator notes
+        └── security/                  # 2 facilitator notes
 ```
 
 ## Workflow
@@ -253,6 +279,19 @@ All cleanup scripts support `--dry-run` and write logs to `./cleanup-logs/`.
 This:
 1. **Clears all git permissions** from the org
 2. **Optionally deletes the org** (with `--delete-org` flag and a 5-second confirmation delay)
+
+## Facilitator Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Facilitator Guide](docs/facilitator-guide.md) | Pre-event checklist, day-of logistics, pacing, common issues, format variations |
+| [Workshop Design Guide](docs/workshop-design-guide.md) | How to create modules, workshops, and events; audience recommendations; time budgets |
+| [Quality Checklist](docs/quality-checklist.md) | Quality standards for authoring or reviewing workshop content |
+| [Repo Naming Convention](docs/repo-naming-convention.md) | Naming rules for repos in the Cognition-Partner-Workshops org |
+| [Runtime Resources](docs/runtime-resources.md) | Provisioning hosted applications for workshop events |
+| [General Themes](docs/general-themes/) | Positioning narratives: when to use Devin, architecture strengths, value framing |
+| [Module Facilitator Notes](docs/module-facilitator-notes/) | Per-module setup, MCP configuration, and presales positioning |
+| [Event README Template](templates/event-readme.md) | Starting template for new event READMEs in workshop-metadata |
 
 ## API Reference Cheatsheet
 
