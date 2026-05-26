@@ -46,7 +46,7 @@ export DEVIN_API_KEY="cog_your_enterprise_service_user_key"
 ./scripts/verify-auth.sh
 
 # 3. Provision a workshop (creates org, sets permissions, invokes setup sessions)
-./scripts/provision-workshop.sh --config configs/dc-april-2026.json
+./scripts/provision-workshop.sh --config configs/june-2026.json
 
 # 4. After the workshop, clean up the GitHub org
 ./scripts/cleanup-all.sh Cognition-Partner-Workshops-mirror
@@ -62,7 +62,7 @@ operator/
 ├── README.md                          # This guide
 ├── configs/
 │   ├── _template.json                 # Template for workshop event configs
-│   └── dc-april-2026.json            # Example: DC April 2026 workshop
+│   └── june-2026.json                 # Example: June 2026 workshop
 ├── scripts/
 │   ├── verify-auth.sh                 # Verify API key and list enterprise state
 │   ├── provision-workshop.sh          # End-to-end: create org → permissions → invites → sessions
@@ -104,7 +104,7 @@ Repos from `Cognition-Partner-Workshops` must exist in `Cognition-Partner-Worksh
 
 # Mirror from a workshop config file
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
-  --config=configs/dc-april-2026.json
+  --config=configs/june-2026.json
 
 # Preview without creating anything
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
@@ -119,8 +119,8 @@ Copy `configs/_template.json` and fill in the event details:
 
 ```json
 {
-  "event_name": "DC April 2026",
-  "org_name": "DC-April-2026",
+  "event_name": "My Workshop — City (Month Year)",
+  "org_name": "My-Workshop-Name",
   "git_connection_id": "git-connection-f76021b797ec4a80a62f8ae9dfc1c45c",
   "max_session_acu_limit": 250,
   "max_cycle_acu_limit": 250,
@@ -130,7 +130,7 @@ Copy `configs/_template.json` and fill in the event details:
   ],
   "setup_as_user_id": "google-oauth2|...",
   "setup_prompt_template": "Set up the {repo} repository from scratch: ...",
-  "emails_file": "participants/dc-april-2026.txt",
+  "emails_file": "participants/my-workshop.txt",
   "enterprise_role_id": "",
   "org_role_id": ""
 }
@@ -154,19 +154,19 @@ Copy `configs/_template.json` and fill in the event details:
 
 ```bash
 # Full provisioning (creates org, sets permissions, invites participants, runs setup sessions)
-./scripts/provision-workshop.sh --config configs/dc-april-2026.json
+./scripts/provision-workshop.sh --config configs/june-2026.json
 
 # Use an existing org (updates ACU limits, re-sets permissions)
-./scripts/provision-workshop.sh --config configs/dc-april-2026.json --org-id org-existing-id
+./scripts/provision-workshop.sh --config configs/june-2026.json --org-id org-existing-id
 
 # Skip sessions if env configs are already set up
-./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-sessions
+./scripts/provision-workshop.sh --config configs/june-2026.json --skip-sessions
 
 # Skip invitations (do them separately later)
-./scripts/provision-workshop.sh --config configs/dc-april-2026.json --skip-invites
+./scripts/provision-workshop.sh --config configs/june-2026.json --skip-invites
 
 # Override emails file from CLI
-./scripts/provision-workshop.sh --config configs/dc-april-2026.json --emails-file participants/late-adds.txt
+./scripts/provision-workshop.sh --config configs/june-2026.json --emails-file participants/late-adds.txt
 ```
 
 This script:
@@ -183,7 +183,7 @@ If you skipped invitations during provisioning or need to add participants later
 ```bash
 ./scripts/invite-participants.sh \
   --org-id org-xxxxx \
-  --emails-file participants/dc-april-2026.txt \
+  --emails-file participants/june-2026.txt \
   --enterprise-role-id role-xxxxx \
   --org-role-id role-yyyyy
 ```

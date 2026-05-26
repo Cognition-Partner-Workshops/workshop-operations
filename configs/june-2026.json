@@ -1,9 +1,11 @@
 {
-  "event_name": "Hands-on Devin Workshop — Edison, NJ (May 2026)",
-  "org_name": "operator",
+  "event_name": "CHANGEME — Event Name",
+  "org_name": "CHANGEME-Org-Name",
+  "git_connection_id": "git-connection-f76021b797ec4a80a62f8ae9dfc1c45c",
   "max_session_acu_limit": 250,
   "max_cycle_acu_limit": 250,
   "repos": [
+    "Cognition-Partner-Workshops-mirror/otterworks",
     "Cognition-Partner-Workshops-mirror/app_timesheet",
     "Cognition-Partner-Workshops-mirror/uc-cve-remediation-regulatory-compliance",
     "Cognition-Partner-Workshops-mirror/app_dotnet_angular_containerized_decomposition_microservices",
@@ -17,6 +19,7 @@
     "Cognition-Partner-Workshops-mirror/uc-data-source-migration-legacy-to-modern",
     "Cognition-Partner-Workshops-mirror/aws-mainframe-modernization-carddemo"
   ],
+  "setup_as_user_id": "",
   "setup_prompt_template": "Set up the {repo} repository from scratch: install dependencies, get the build and tests working. Then capture the working setup steps in the .yaml environment configuration.\n\nShould we get the app running: yes",
   "emails_file": "",
   "enterprise_role_id": "",
