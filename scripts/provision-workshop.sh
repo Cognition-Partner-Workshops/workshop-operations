@@ -5,9 +5,9 @@
 # Devin sessions to set up environment config YAMLs for each repo.
 #
 # Usage:
-#   ./provision-workshop.sh --config configs/dc-april-2026.json
-#   ./provision-workshop.sh --config configs/dc-april-2026.json --skip-sessions
-#   ./provision-workshop.sh --config configs/dc-april-2026.json --org-id org-existing-id
+#   ./provision-workshop.sh --config configs/june-2026.json
+#   ./provision-workshop.sh --config configs/june-2026.json --skip-sessions
+#   ./provision-workshop.sh --config configs/june-2026.json --org-id org-existing-id
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
