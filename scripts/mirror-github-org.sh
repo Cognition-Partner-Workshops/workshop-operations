@@ -107,18 +107,21 @@ if [[ -n "$CONFIG_FILE" ]]; then
   while IFS= read -r r; do REPO_NAMES+=("$r"); done < <(jq -r '.repos[] | split("/") | .[1]' "$CONFIG_FILE")
 else
   log "Fetching repos from ${SOURCE_ORG} on ${SOURCE_HOST}..."
+  api_err=$(mktemp)
   page=1
   while true; do
     if ! repos=$(source_api "orgs/${SOURCE_ORG}/repos?per_page=100&page=${page}&type=all" \
-      --jq '.[].name' 2>&1); then
+      --jq '.[].name' 2>"$api_err"); then
       log "ERROR: Failed to list repos in ${SOURCE_ORG} on ${SOURCE_HOST}:"
-      log "  ${repos}"
+      log "  $(cat "$api_err")"
+      rm -f "$api_err"
       exit 1
     fi
     [[ -z "$repos" ]] && break
     while IFS= read -r r; do REPO_NAMES+=("$r"); done <<< "$repos"
     page=$((page + 1))
   done
+  rm -f "$api_err"
 fi
 log "Repos to process: ${#REPO_NAMES[@]}"
 
@@ -129,12 +132,14 @@ TARGET_SET=""
 TARGET_SET_COUNT=0
 if [[ "$SKIP_EXISTING" == "true" ]]; then
   log "Fetching existing repos in ${TARGET_ORG} on ${TARGET_HOST}..."
+  api_err=$(mktemp)
   page=1
   while true; do
     if ! repos=$(target_api "orgs/${TARGET_ORG}/repos?per_page=100&page=${page}&type=all" \
-      --jq '.[].name' 2>&1); then
+      --jq '.[].name' 2>"$api_err"); then
       log "ERROR: Failed to list repos in ${TARGET_ORG} on ${TARGET_HOST}:"
-      log "  ${repos}"
+      log "  $(cat "$api_err")"
+      rm -f "$api_err"
       exit 1
     fi
     [[ -z "$repos" ]] && break
@@ -144,6 +149,7 @@ if [[ "$SKIP_EXISTING" == "true" ]]; then
     done <<< "$repos"
     page=$((page + 1))
   done
+  rm -f "$api_err"
   log "Existing repos in target: ${TARGET_SET_COUNT}"
 fi
 
