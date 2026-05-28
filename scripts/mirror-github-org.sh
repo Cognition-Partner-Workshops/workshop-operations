@@ -18,9 +18,14 @@
 #   --strip-workflows      Remove .github/workflows/ from all branches (default)
 #   --no-strip-workflows   Keep workflows as-is
 #   --config=<file>        Read repo list from a workshop config JSON instead of listing the source org
+#   --source-host=<host>   GitHub hostname for the source org (default: github.com)
+#   --target-host=<host>   GitHub hostname for the target org (default: github.com)
 #
 # Prerequisites:
 #   - gh CLI authenticated with admin:org, repo scopes for both orgs
+#     (if source and target are on different hosts, authenticate to both:
+#      gh auth login --hostname github.com
+#      gh auth login --hostname ghes.example.com)
 #   - git, jq
 #
 # Note: This creates independent copies, not git mirrors. Lab-specific changes
@@ -38,6 +43,8 @@ SKIP_EXISTING=true
 VISIBILITY="private"
 STRIP_WORKFLOWS=true
 CONFIG_FILE=""
+SOURCE_HOST="github.com"
+TARGET_HOST="github.com"
 
 for arg in "$@"; do
   case "$arg" in
@@ -50,6 +57,8 @@ for arg in "$@"; do
     --strip-workflows)     STRIP_WORKFLOWS=true ;;
     --no-strip-workflows)  STRIP_WORKFLOWS=false ;;
     --config=*)            CONFIG_FILE="${arg#*=}" ;;
+    --source-host=*)       SOURCE_HOST="${arg#*=}" ;;
+    --target-host=*)       TARGET_HOST="${arg#*=}" ;;
     -h|--help)
       sed -n '2,/^[^#]/{ /^#/s/^# \?//p }' "$0"
       exit 0
@@ -66,9 +75,27 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$LOGFILE"; }
 
+source_api() { gh api --hostname "$SOURCE_HOST" "$@"; }
+target_api() { gh api --hostname "$TARGET_HOST" "$@"; }
+
+source_git_url() { echo "https://${SOURCE_HOST}/${SOURCE_ORG}/${1}.git"; }
+target_git_url() { echo "https://${TARGET_HOST}/${TARGET_ORG}/${1}.git"; }
+
 log "=== GitHub Org Mirror ==="
-log "Source: ${SOURCE_ORG} -> Target: ${TARGET_ORG}"
+log "Source: ${SOURCE_ORG} (${SOURCE_HOST}) -> Target: ${TARGET_ORG} (${TARGET_HOST})"
 log "Visibility: ${VISIBILITY} | Strip workflows: ${STRIP_WORKFLOWS} | Dry run: ${DRY_RUN}"
+
+# ---------------------------------------------------------------------------
+# Pre-flight: verify gh is authenticated to both hosts
+# ---------------------------------------------------------------------------
+for host in "$SOURCE_HOST" "$TARGET_HOST"; do
+  if ! gh auth status --hostname "$host" >/dev/null 2>&1; then
+    log "ERROR: gh CLI is not authenticated to ${host}"
+    log "  Run: gh auth login --hostname ${host}"
+    exit 1
+  fi
+done
+log "Auth OK: ${SOURCE_HOST}$([ "$SOURCE_HOST" != "$TARGET_HOST" ] && echo ", ${TARGET_HOST}")"
 
 # ---------------------------------------------------------------------------
 # Collect repo names
@@ -79,11 +106,15 @@ if [[ -n "$CONFIG_FILE" ]]; then
   log "Reading repos from config: ${CONFIG_FILE}"
   while IFS= read -r r; do REPO_NAMES+=("$r"); done < <(jq -r '.repos[] | split("/") | .[1]' "$CONFIG_FILE")
 else
-  log "Fetching repos from ${SOURCE_ORG}..."
+  log "Fetching repos from ${SOURCE_ORG} on ${SOURCE_HOST}..."
   page=1
   while true; do
-    repos=$(gh api "orgs/${SOURCE_ORG}/repos?per_page=100&page=${page}&type=all" \
-      --jq '.[].name' 2>/dev/null) || break
+    if ! repos=$(source_api "orgs/${SOURCE_ORG}/repos?per_page=100&page=${page}&type=all" \
+      --jq '.[].name' 2>&1); then
+      log "ERROR: Failed to list repos in ${SOURCE_ORG} on ${SOURCE_HOST}:"
+      log "  ${repos}"
+      exit 1
+    fi
     [[ -z "$repos" ]] && break
     while IFS= read -r r; do REPO_NAMES+=("$r"); done <<< "$repos"
     page=$((page + 1))
@@ -97,11 +128,15 @@ log "Repos to process: ${#REPO_NAMES[@]}"
 TARGET_SET=""
 TARGET_SET_COUNT=0
 if [[ "$SKIP_EXISTING" == "true" ]]; then
-  log "Fetching existing repos in ${TARGET_ORG}..."
+  log "Fetching existing repos in ${TARGET_ORG} on ${TARGET_HOST}..."
   page=1
   while true; do
-    repos=$(gh api "orgs/${TARGET_ORG}/repos?per_page=100&page=${page}&type=all" \
-      --jq '.[].name' 2>/dev/null) || break
+    if ! repos=$(target_api "orgs/${TARGET_ORG}/repos?per_page=100&page=${page}&type=all" \
+      --jq '.[].name' 2>&1); then
+      log "ERROR: Failed to list repos in ${TARGET_ORG} on ${TARGET_HOST}:"
+      log "  ${repos}"
+      exit 1
+    fi
     [[ -z "$repos" ]] && break
     while IFS= read -r r; do
       TARGET_SET="${TARGET_SET}:${r}:"
@@ -146,8 +181,8 @@ for repo_name in "${REPO_NAMES[@]}"; do
     continue
   fi
 
-  default_branch=$(gh api "repos/${SOURCE_ORG}/${repo_name}" --jq '.default_branch' 2>/dev/null || echo "main")
-  description=$(gh api "repos/${SOURCE_ORG}/${repo_name}" --jq '.description // ""' 2>/dev/null || echo "")
+  default_branch=$(source_api "repos/${SOURCE_ORG}/${repo_name}" --jq '.default_branch' 2>/dev/null || echo "main")
+  description=$(source_api "repos/${SOURCE_ORG}/${repo_name}" --jq '.description // ""' 2>/dev/null || echo "")
 
   if [[ "$DRY_RUN" == "true" ]]; then
     log "DRY RUN: Would mirror ${repo_name} (branch: ${default_branch})"
@@ -160,7 +195,7 @@ for repo_name in "${REPO_NAMES[@]}"; do
   clone_dir="${WORK_DIR}/${repo_name}.git"
 
   # Clone bare from source
-  if ! git clone --bare "https://github.com/${SOURCE_ORG}/${repo_name}.git" "$clone_dir" 2>>"$LOGFILE"; then
+  if ! git clone --bare "$(source_git_url "$repo_name")" "$clone_dir" 2>>"$LOGFILE"; then
     log "FAIL (clone): ${repo_name}"
     failed=$((failed + 1))
     continue
@@ -193,7 +228,7 @@ for repo_name in "${REPO_NAMES[@]}"; do
   fi
 
   # Create target repo
-  if ! gh api "orgs/${TARGET_ORG}/repos" \
+  if ! target_api "orgs/${TARGET_ORG}/repos" \
     -X POST \
     -f name="$repo_name" \
     -f description="$description" \
@@ -208,7 +243,7 @@ for repo_name in "${REPO_NAMES[@]}"; do
 
   # Push all branches and tags
   cd "$clone_dir"
-  if ! git push --mirror "https://github.com/${TARGET_ORG}/${repo_name}.git" 2>>"$LOGFILE"; then
+  if ! git push --mirror "$(target_git_url "$repo_name")" 2>>"$LOGFILE"; then
     log "FAIL (push): ${repo_name}"
     failed=$((failed + 1))
     cd - >/dev/null

@@ -135,9 +135,15 @@ Repos from `Cognition-Partner-Workshops` must exist in `Cognition-Partner-Worksh
 # Preview without creating anything
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
   --dry-run
+
+# Mirror from github.com to a GitHub Enterprise Server instance
+./scripts/mirror-github-org.sh Cognition-Partner-Workshops target-org \
+  --source-host=github.com --target-host=ghes.example.com
 ```
 
-Options: `--include=<glob>`, `--exclude=<glob>`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--config=<file>`.
+Options: `--include=<glob>`, `--exclude=<glob>`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--config=<file>`, `--source-host=<host>`, `--target-host=<host>`.
+
+> **Cross-host mirroring (GHES):** When the source and target orgs live on different GitHub instances, use `--source-host` and `--target-host`. The `gh` CLI must be authenticated to both hosts (`gh auth login --hostname <host>`). The script verifies auth to both hosts before starting.
 
 #### 1.2 Create a Workshop Config
 
