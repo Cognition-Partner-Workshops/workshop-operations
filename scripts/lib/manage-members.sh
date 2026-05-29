@@ -94,7 +94,7 @@ assign_user_to_org() {
     payload=$(echo "$payload" | jq --arg r "$role_id" '. + {org_role_id: $r}')
   fi
 
-  api_post "/v3/enterprise/organizations/${org_id}/members/users" "$payload"
+  api_put "/v3/enterprise/organizations/${org_id}/members/users" "$payload"
 }
 
 # ---------------------------------------------------------------------------
