@@ -133,14 +133,14 @@ invite_and_assign() {
     emails_json=$(printf '%s\n' "${batch[@]}" | jq -R . | jq -s .)
 
     info "Inviting ${#batch[@]} user(s) to enterprise..."
-    local result user_ids=""
-    result=$(invite_enterprise_members "$emails_json" "$enterprise_role") && {
+    local result user_ids="" lookup_failures=0
+    if result=$(invite_enterprise_members "$emails_json" "$enterprise_role"); then
       user_ids=$(echo "$result" | jq -r '.[].user_id // empty' 2>/dev/null)
-    } || {
+    else
       warn "Batch invite returned an error (users may already exist). Looking up individually..."
       for email in "${batch[@]}"; do
         local member_json
-        member_json=$(lookup_enterprise_member "$email") || continue
+        member_json=$(lookup_enterprise_member "$email") || { lookup_failures=$((lookup_failures + 1)); continue; }
         local uid
         uid=$(echo "$member_json" | jq -r '.user_id // empty' 2>/dev/null)
         if [[ -n "$uid" ]]; then
@@ -149,14 +149,17 @@ invite_and_assign() {
           info "Found existing user: ${email} -> ${uid}"
         else
           warn "Could not find user_id for ${email}"
-          failed=$((failed + 1))
+          lookup_failures=$((lookup_failures + 1))
         fi
       done
-    }
+      failed=$((failed + lookup_failures))
+    fi
 
     if [[ -z "$user_ids" ]]; then
+      if [[ "$lookup_failures" -eq 0 ]]; then
+        failed=$((failed + ${#batch[@]}))
+      fi
       warn "No user IDs resolved for batch. Skipping org assignment."
-      failed=$((failed + ${#batch[@]}))
       continue
     fi
 
@@ -167,8 +170,8 @@ invite_and_assign() {
 
       local assign_result
       assign_result=$(assign_user_to_org "$org_id" "$user_id" "$org_role") || {
-        warn "Failed to assign ${user_id} to org ${org_id} (may already be a member)"
-        assigned=$((assigned + 1))
+        warn "Failed to assign ${user_id} to org ${org_id}"
+        failed=$((failed + 1))
         continue
       }
 
