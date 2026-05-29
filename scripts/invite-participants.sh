@@ -67,4 +67,4 @@ ROLE_ARGS=()
 [[ -n "$ENTERPRISE_ROLE_ID" ]] && ROLE_ARGS+=("--enterprise-role=${ENTERPRISE_ROLE_ID}")
 [[ -n "$ORG_ROLE_ID" ]] && ROLE_ARGS+=("--org-role=${ORG_ROLE_ID}")
 
-invite_and_assign "$ORG_ID" "${EMAILS[@]}" "${ROLE_ARGS[@]}"
+invite_and_assign "$ORG_ID" "${EMAILS[@]}" ${ROLE_ARGS[@]+"${ROLE_ARGS[@]}"}
