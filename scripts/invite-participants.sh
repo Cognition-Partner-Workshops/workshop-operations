@@ -39,7 +39,8 @@ done
 [[ -z "$ORG_ID" ]] && die "Missing required --org-id"
 [[ -z "$EMAILS_FILE" ]] && die "Missing required --emails-file"
 
-mapfile -t EMAILS < <(read_emails_file "$EMAILS_FILE")
+EMAILS=()
+while IFS= read -r r; do EMAILS+=("$r"); done < <(read_emails_file "$EMAILS_FILE")
 
 if [[ ${#EMAILS[@]} -eq 0 ]]; then
   info "No emails found in ${EMAILS_FILE}"
@@ -66,4 +67,4 @@ ROLE_ARGS=()
 [[ -n "$ENTERPRISE_ROLE_ID" ]] && ROLE_ARGS+=("--enterprise-role=${ENTERPRISE_ROLE_ID}")
 [[ -n "$ORG_ROLE_ID" ]] && ROLE_ARGS+=("--org-role=${ORG_ROLE_ID}")
 
-invite_and_assign "$ORG_ID" "${EMAILS[@]}" "${ROLE_ARGS[@]}"
+invite_and_assign "$ORG_ID" "${EMAILS[@]}" ${ROLE_ARGS[@]+"${ROLE_ARGS[@]}"}

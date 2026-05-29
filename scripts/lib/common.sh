@@ -11,7 +11,7 @@ DEVIN_API_KEY="${DEVIN_API_KEY:?DEVIN_API_KEY must be set to a cog_ enterprise s
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-log()  { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*"; }
+log()  { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*" >&2; }
 info() { log "INFO  $*"; }
 warn() { log "WARN  $*" >&2; }
 err()  { log "ERROR $*" >&2; }
