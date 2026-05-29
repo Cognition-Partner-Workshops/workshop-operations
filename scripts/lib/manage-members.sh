@@ -13,13 +13,52 @@ invite_enterprise_members() {
   local emails_json="$1"
   local role_id="${2:-}"
 
-  local payload
-  payload=$(jq -n --argjson emails "$emails_json" '{emails: $emails}')
-  if [[ -n "$role_id" ]]; then
-    payload=$(echo "$payload" | jq --arg r "$role_id" '. + {enterprise_role_id: $r}')
+  # enterprise_role_id is required by the API. If not provided, try to
+  # discover the default member role automatically.
+  if [[ -z "$role_id" ]]; then
+    info "No enterprise_role_id configured. Discovering available roles..."
+    role_id=$(discover_default_enterprise_role) || {
+      die "enterprise_role_id is required by the API but none was configured and auto-discovery failed. Set enterprise_role_id in your config JSON."
+    }
+    info "Using discovered role: ${role_id}"
   fi
 
+  local payload
+  payload=$(jq -n --argjson emails "$emails_json" --arg role "$role_id" \
+    '{emails: $emails, enterprise_role_id: $role}')
+
   api_post "/v3/enterprise/members/users" "$payload"
+}
+
+# ---------------------------------------------------------------------------
+# Discover the default enterprise member role.
+# Returns the role_id of the first role found with "member" in the name
+# (case-insensitive), or the first role if no "member" role exists.
+# ---------------------------------------------------------------------------
+discover_default_enterprise_role() {
+  local roles_json
+  roles_json=$(api_get "/v3/enterprise/roles") || return 1
+
+  # Try to find a role with "member" in the name
+  local role_id
+  role_id=$(echo "$roles_json" | jq -r '
+    [.items[] | select(.name | test("member"; "i"))] |
+    if length > 0 then .[0].role_id
+    else empty end' 2>/dev/null)
+
+  if [[ -n "$role_id" ]]; then
+    echo "$role_id"
+    return 0
+  fi
+
+  # Fall back to first available role
+  role_id=$(echo "$roles_json" | jq -r '.items[0].role_id // empty' 2>/dev/null)
+  if [[ -n "$role_id" ]]; then
+    echo "$role_id"
+    return 0
+  fi
+
+  return 1
 }
 
 # ---------------------------------------------------------------------------

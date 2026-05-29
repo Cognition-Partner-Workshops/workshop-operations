@@ -62,6 +62,19 @@ echo "  Service users:"
 echo "$sus_json" | jq -r '.[] | "    \(.service_user_id)  \(.name)  (expires: \(.expires_at // "never"))"'
 echo
 
+# Step 6: List enterprise roles
+info "Listing enterprise roles..."
+roles_json=$(api_get "/v3/enterprise/roles") || true
+if [[ -n "$roles_json" ]]; then
+  echo
+  echo "  Enterprise roles:"
+  echo "$roles_json" | jq -r '.items[] | "    \(.role_id)  \(.name)"' 2>/dev/null || echo "    (unable to parse roles response)"
+  echo
+else
+  echo "  (no roles returned or endpoint unavailable)"
+  echo
+fi
+
 echo "============================================"
 echo "  Verification complete"
 echo "============================================"
