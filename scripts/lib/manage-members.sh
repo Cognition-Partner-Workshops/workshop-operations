@@ -88,13 +88,12 @@ assign_user_to_org() {
   local user_id="$2"
   local role_id="${3:-}"
 
-  local payload
-  payload=$(jq -n --arg uid "$user_id" '{user_id: $uid}')
+  local payload="{}"
   if [[ -n "$role_id" ]]; then
-    payload=$(echo "$payload" | jq --arg r "$role_id" '. + {org_role_id: $r}')
+    payload=$(jq -n --arg r "$role_id" '{org_role_id: $r}')
   fi
 
-  api_post "/v3/organizations/${org_id}/members/users" "$payload"
+  api_post "/v3/enterprise/organizations/${org_id}/members/users/${user_id}" "$payload"
 }
 
 # ---------------------------------------------------------------------------
