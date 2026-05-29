@@ -48,7 +48,7 @@ discover_default_enterprise_role() {
   # Try to find a role with "member" in the name
   local role_id
   role_id=$(echo "$roles_json" | jq -r '
-    [.items[] | select(.name | test("member"; "i"))] |
+    [.items[] | select(.role_type == "enterprise") | select(.role_name | test("member"; "i"))] |
     if length > 0 then .[0].role_id
     else empty end' 2>/dev/null)
 
@@ -57,8 +57,8 @@ discover_default_enterprise_role() {
     return 0
   fi
 
-  # Fall back to first available role
-  role_id=$(echo "$roles_json" | jq -r '.items[0].role_id // empty' 2>/dev/null)
+  # Fall back to first enterprise role
+  role_id=$(echo "$roles_json" | jq -r '[.items[] | select(.role_type == "enterprise")][0].role_id // empty' 2>/dev/null)
   if [[ -n "$role_id" ]]; then
     echo "$role_id"
     return 0
@@ -88,10 +88,13 @@ assign_user_to_org() {
   local user_id="$2"
   local role_id="${3:-}"
 
-  local payload="{}"
-  if [[ -n "$role_id" ]]; then
-    payload=$(jq -n --arg r "$role_id" '{org_role_id: $r}')
+  # role_id is required by the API. Default to org_member if not provided.
+  if [[ -z "$role_id" ]]; then
+    role_id="org_member"
   fi
+
+  local payload
+  payload=$(jq -n --arg r "$role_id" '{role_id: $r}')
 
   api_post "/v3/enterprise/organizations/${org_id}/members/users/${user_id}" "$payload"
 }

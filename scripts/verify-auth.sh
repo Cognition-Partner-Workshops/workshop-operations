@@ -68,7 +68,7 @@ roles_json=$(api_get "/v3/enterprise/roles") || true
 if [[ -n "$roles_json" ]]; then
   echo
   echo "  Enterprise roles:"
-  echo "$roles_json" | jq -r '.items[] | "    \(.role_id)  \(.name)"' 2>/dev/null || echo "    (unable to parse roles response)"
+  echo "$roles_json" | jq -r '.items[] | "    \(.role_id)  \(.role_name)  (\(.role_type))"' 2>/dev/null || echo "    (unable to parse roles response)"
   echo
 else
   echo "  (no roles returned or endpoint unavailable)"
