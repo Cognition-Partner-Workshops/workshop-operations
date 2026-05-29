@@ -36,10 +36,15 @@ create_org() {
       --arg name "$name" \
       --argjson session "$max_session" \
       --argjson cycle "$max_cycle" \
-      '{name: $name, max_session_acu_limit: $session, max_cycle_acu_limit: $cycle}')")
+      '{name: $name, max_session_acu_limit: $session, max_cycle_acu_limit: $cycle}')") || {
+    die "Failed to create organization '${name}'. If it already exists, use --org-id <id> instead."
+  }
 
   local org_id
   org_id=$(echo "$result" | jq -r '.org_id')
+  if [[ -z "$org_id" || "$org_id" == "null" ]]; then
+    die "API did not return an org_id. Response: ${result}"
+  fi
   info "Created org: ${org_id} (${name})"
   echo "$result"
 }
