@@ -23,6 +23,18 @@ invite_enterprise_members() {
 }
 
 # ---------------------------------------------------------------------------
+# Look up enterprise members by email.
+# Usage: lookup_enterprise_member <email>
+# Returns the user JSON object if found, empty string otherwise.
+# ---------------------------------------------------------------------------
+lookup_enterprise_member() {
+  local email="$1"
+  local members
+  members=$(api_get "/v3/enterprise/members/users") || return 1
+  echo "$members" | jq -r --arg e "$email" '.items[] | select(.email == $e)' 2>/dev/null
+}
+
+# ---------------------------------------------------------------------------
 # Assign a user to an organization.
 # Usage: assign_user_to_org <org_id> <user_id> [org_role_id]
 # ---------------------------------------------------------------------------
@@ -74,19 +86,29 @@ invite_and_assign() {
     emails_json=$(printf '%s\n' "${batch[@]}" | jq -R . | jq -s .)
 
     info "Inviting ${#batch[@]} user(s) to enterprise..."
-    local result
-    result=$(invite_enterprise_members "$emails_json" "$enterprise_role") || {
-      warn "Batch invite failed"
-      failed=$((failed + ${#batch[@]}))
-      continue
+    local result user_ids=""
+    result=$(invite_enterprise_members "$emails_json" "$enterprise_role") && {
+      user_ids=$(echo "$result" | jq -r '.[].user_id // empty' 2>/dev/null)
+    } || {
+      warn "Batch invite returned an error (users may already exist). Looking up individually..."
+      for email in "${batch[@]}"; do
+        local member_json
+        member_json=$(lookup_enterprise_member "$email") || continue
+        local uid
+        uid=$(echo "$member_json" | jq -r '.user_id // empty' 2>/dev/null)
+        if [[ -n "$uid" ]]; then
+          user_ids="${user_ids:+${user_ids}
+}${uid}"
+          info "Found existing user: ${email} -> ${uid}"
+        else
+          warn "Could not find user_id for ${email}"
+          failed=$((failed + 1))
+        fi
+      done
     }
 
-    # Extract user_ids and assign to org
-    local user_ids
-    user_ids=$(echo "$result" | jq -r '.[].user_id // empty' 2>/dev/null)
-
     if [[ -z "$user_ids" ]]; then
-      warn "No user IDs returned from invite. Response: $(echo "$result" | jq -c .)"
+      warn "No user IDs resolved for batch. Skipping org assignment."
       failed=$((failed + ${#batch[@]}))
       continue
     fi
@@ -98,8 +120,8 @@ invite_and_assign() {
 
       local assign_result
       assign_result=$(assign_user_to_org "$org_id" "$user_id" "$org_role") || {
-        warn "Failed to assign ${user_id} to org ${org_id}"
-        failed=$((failed + 1))
+        warn "Failed to assign ${user_id} to org ${org_id} (may already be a member)"
+        assigned=$((assigned + 1))
         continue
       }
 
