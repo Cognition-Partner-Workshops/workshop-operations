@@ -69,7 +69,8 @@ if [[ -z "$EMAILS_FILE" ]]; then
   EMAILS_FILE=$(config_get "$CONFIG_FILE" '.emails_file // empty')
 fi
 
-mapfile -t REPOS < <(config_get_array "$CONFIG_FILE" '.repos')
+REPOS=()
+while IFS= read -r r; do REPOS+=("$r"); done < <(config_get_array "$CONFIG_FILE" '.repos')
 
 echo
 echo "============================================"
@@ -129,7 +130,8 @@ else
   if [[ ! -f "$EMAILS_FILE" ]]; then
     warn "Emails file not found: ${EMAILS_FILE}; skipping invitations"
   else
-    mapfile -t PARTICIPANT_EMAILS < <(read_emails_file "$EMAILS_FILE")
+    PARTICIPANT_EMAILS=()
+    while IFS= read -r r; do PARTICIPANT_EMAILS+=("$r"); done < <(read_emails_file "$EMAILS_FILE")
     if [[ ${#PARTICIPANT_EMAILS[@]} -gt 0 ]]; then
       info "Inviting ${#PARTICIPANT_EMAILS[@]} participant(s)..."
       ROLE_ARGS=()
