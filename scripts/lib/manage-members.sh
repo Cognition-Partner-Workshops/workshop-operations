@@ -13,19 +13,25 @@ invite_enterprise_members() {
   local emails_json="$1"
   local role_id="${2:-}"
 
-  # enterprise_role_id is required by the API. If not provided, try to
-  # discover the default member role automatically.
+  # enterprise_role_id is required by the API in most configurations.
+  # If not provided, try to auto-discover a default member role.
   if [[ -z "$role_id" ]]; then
     info "No enterprise_role_id configured. Discovering available roles..."
-    role_id=$(discover_default_enterprise_role) || {
-      die "enterprise_role_id is required by the API but none was configured and auto-discovery failed. Set enterprise_role_id in your config JSON."
-    }
-    info "Using discovered role: ${role_id}"
+    role_id=$(discover_default_enterprise_role) || true
+    if [[ -n "$role_id" ]]; then
+      info "Using discovered role: ${role_id}"
+    else
+      info "No roles found. Attempting invite without enterprise_role_id..."
+    fi
   fi
 
   local payload
-  payload=$(jq -n --argjson emails "$emails_json" --arg role "$role_id" \
-    '{emails: $emails, enterprise_role_id: $role}')
+  if [[ -n "$role_id" ]]; then
+    payload=$(jq -n --argjson emails "$emails_json" --arg role "$role_id" \
+      '{emails: $emails, enterprise_role_id: $role}')
+  else
+    payload=$(jq -n --argjson emails "$emails_json" '{emails: $emails}')
+  fi
 
   api_post "/v3/enterprise/members/users" "$payload"
 }
