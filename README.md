@@ -68,6 +68,8 @@ export DEVIN_API_KEY="cog_your_enterprise_service_user_key"
 ```
 operator/
 ├── README.md                          # This guide
+├── .workshop/
+│   └── playbooks/                     # Portable Devin Playbook sources (*.devin.md) for authoring demos
 ├── configs/
 │   ├── _template.json                 # Template for workshop event configs
 │   └── june-2026.json                 # Example: June 2026 workshop
@@ -286,10 +288,45 @@ This:
 1. **Clears all git permissions** from the org
 2. **Optionally deletes the org** (with `--delete-org` flag and a 5-second confirmation delay)
 
+## Authoring Demos — the `.workshop/` Convention
+
+`.workshop/` is a convention directory for **demo-authoring assets** — content
+that helps a facilitator build and run a Devin demo but is neither application
+code nor attendee-facing lab content. Here in the operator repo it holds the
+**meta-playbooks** for authoring demos; in a use-case/code repo it holds the
+demo's own portable playbook source.
+
+- `.workshop/playbooks/*.devin.md` — **portable Devin Playbook sources.** Each is
+  a general, reusable procedure formatted per the
+  [Creating Playbooks](https://docs.devin.ai/product-guides/creating-playbooks)
+  guide. The `.devin.md` extension marks it drag-and-droppable into a Devin org.
+  These are **not** auto-loaded by Devin — a facilitator copies the contents into
+  the org (Settings → Playbooks, or via the v3 API / Devin MCP) so sessions
+  invoke them by `!macro`.
+
+A Devin demo is built from three decoupled artifacts, each with a clear home:
+
+| Artifact | Location | Loading | Scope |
+|---|---|---|---|
+| **Playbook** | `<repo>/.workshop/playbooks/*.devin.md` | copied into the org by the facilitator; invoked via `!macro` | portable, general procedure |
+| **Skill** | `<repo>/.agents/skills/<name>/SKILL.md` | auto-loaded by Devin when working in the repo | repo-specific mechanics (commands, paths, namespaces) |
+| **Presenter thread** | `workshop-metadata/demos/<category>/*-demo.md` | read by the presenter | the single linear demo script |
+
+To author a new demo this way, use the
+[`!author-devin-demo`](.workshop/playbooks/author-devin-demo.devin.md) playbook
+in `.workshop/playbooks/`. It walks through choosing a verifiable outcome,
+staging before/after as parallel/repeatable/reversible, writing the three
+artifacts, and showcasing Devin's differentiated value (orchestrator → child
+fan-out, scheduled Devins for recurring ops, isolated per-session workspaces and
+credentials as a feature, [Automations](https://docs.devin.ai/product-guides/automations),
+Playbooks, and the programmatic verification loop). Facilitator-only logistics
+stay in this operator repo; attendee-facing narrative goes to `workshop-metadata`.
+
 ## Facilitator Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Author a Devin Demo](.workshop/playbooks/author-devin-demo.devin.md) | Playbook (`!author-devin-demo`) for building a new verifiable Devin demo and its playbook/skill/presenter artifacts |
 | [Facilitator Guide](docs/facilitator-guide.md) | Pre-event checklist, day-of logistics, pacing, common issues, format variations |
 | [Workshop Design Guide](docs/workshop-design-guide.md) | How to create modules, workshops, and events; audience recommendations; time budgets |
 | [Quality Checklist](docs/quality-checklist.md) | Quality standards for authoring or reviewing workshop content |
