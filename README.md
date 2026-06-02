@@ -162,26 +162,29 @@ Options: `--include=<glob>`, `--exclude=<glob>`, `--no-default-excludes`, `--vis
 
 ##### Clone by name (single or batch)
 
-Use `scripts/clone-repo.sh` to import one or more repos by name:
+Use `scripts/clone-repo.sh` to import one or more repos by name. By default only the **default branch** is copied (like the "copy default branch only" checkbox in the GitHub fork UI):
 
 ```bash
-# Clone a single repo
+# Clone a single repo (default branch only)
 ./scripts/clone-repo.sh uc-bdd-test-generation-rest-api
 
 # Clone multiple repos in one command
 ./scripts/clone-repo.sh otterworks uc-bdd-test-generation-rest-api ts-angular-realworld-example-app
 
+# Copy all branches
+./scripts/clone-repo.sh otterworks --all-branches
+
+# Copy only specific branches (e.g. migration repos with checkpoint branches)
+./scripts/clone-repo.sh uc-legacy-modernization-cobol-to-java --branches=main,java
+
 # Clone to a different target org
 ./scripts/clone-repo.sh otterworks --target-org=MyPrivateOrg
-
-# Clone to a GitHub Enterprise Server instance
-./scripts/clone-repo.sh otterworks --target-org=MyOrg --target-host=ghes.example.com
 
 # Preview without creating anything
 ./scripts/clone-repo.sh otterworks ts-angular-realworld-example-app --dry-run
 ```
 
-Options: `--source-org=<org>`, `--target-org=<org>`, `--source-host=<host>`, `--target-host=<host>`, `--visibility=<v>`, `--strip-workflows` (default), `--no-skip-existing`, `--dry-run`.
+Options: `--source-org=<org>`, `--target-org=<org>`, `--source-host=<host>`, `--target-host=<host>`, `--visibility=<v>`, `--all-branches`, `--branches=<a,b,c>`, `--strip-workflows` (default), `--no-skip-existing`, `--dry-run`.
 
 The script processes every repo in sequence and prints a summary at the end (OK / Skipped / Blocked / Failed).
 

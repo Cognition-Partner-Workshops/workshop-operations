@@ -6,6 +6,10 @@
 # equivalent of mirror-github-org.sh — intended to be called by a local AI
 # coding agent or a facilitator setting up repos on demand.
 #
+# By default only the default branch is copied (like the "copy default branch
+# only" option in the GitHub fork UI).  Use --all-branches or --branches=a,b,c
+# to include additional branches.
+#
 # Usage:
 #   ./scripts/clone-repo.sh <REPO_NAME>... [OPTIONS]
 #
@@ -18,7 +22,9 @@
 #   --source-host=<host>   GitHub hostname for the source (default: github.com)
 #   --target-host=<host>   GitHub hostname for the target (default: github.com)
 #   --visibility=<v>       Target repo visibility: public, private (default: private)
-#   --strip-workflows      Remove .github/workflows/ from all branches (default)
+#   --all-branches         Copy all branches (default: default branch only)
+#   --branches=<a,b,c>     Copy only these branches (comma-separated)
+#   --strip-workflows      Remove .github/workflows/ from copied branches (default)
 #   --no-strip-workflows   Keep workflows as-is
 #   --skip-existing        Skip if the repo already exists in target (default)
 #   --no-skip-existing     Overwrite if it already exists
@@ -29,14 +35,17 @@
 #   - git, jq
 #
 # Examples:
-#   # Clone a single repo
+#   # Clone a single repo (default branch only)
 #   ./scripts/clone-repo.sh uc-bdd-test-generation-rest-api
 #
 #   # Clone multiple repos in one command
 #   ./scripts/clone-repo.sh otterworks uc-bdd-test-generation-rest-api ts-angular-realworld-example-app
 #
-#   # Clone to a different target org on GHES
-#   ./scripts/clone-repo.sh otterworks --target-org=MyPrivateOrg --target-host=ghes.example.com
+#   # Copy all branches
+#   ./scripts/clone-repo.sh otterworks --all-branches
+#
+#   # Copy only specific branches
+#   ./scripts/clone-repo.sh uc-legacy-modernization-cobol-to-java --branches=main,java
 #
 #   # Preview without creating anything
 #   ./scripts/clone-repo.sh otterworks ts-angular-realworld-example-app --dry-run
@@ -50,6 +59,8 @@ VISIBILITY="private"
 STRIP_WORKFLOWS=true
 SKIP_EXISTING=true
 DRY_RUN=false
+BRANCH_MODE="default"   # "default" | "all" | "specific"
+BRANCH_LIST=()           # used when BRANCH_MODE=specific
 
 REPO_NAMES=()
 
@@ -60,6 +71,8 @@ for arg in "$@"; do
     --source-host=*)      SOURCE_HOST="${arg#*=}" ;;
     --target-host=*)      TARGET_HOST="${arg#*=}" ;;
     --visibility=*)       VISIBILITY="${arg#*=}" ;;
+    --all-branches)       BRANCH_MODE="all" ;;
+    --branches=*)         BRANCH_MODE="specific"; IFS=',' read -ra BRANCH_LIST <<< "${arg#*=}" ;;
     --strip-workflows)    STRIP_WORKFLOWS=true ;;
     --no-strip-workflows) STRIP_WORKFLOWS=false ;;
     --skip-existing)      SKIP_EXISTING=true ;;
@@ -104,10 +117,18 @@ for host in "$SOURCE_HOST" "$TARGET_HOST"; do
   fi
 done
 
+branch_label="default branch only"
+if [[ "$BRANCH_MODE" == "all" ]]; then
+  branch_label="all branches"
+elif [[ "$BRANCH_MODE" == "specific" ]]; then
+  branch_label="branches: ${BRANCH_LIST[*]}"
+fi
+
 log "=== Clone Repos ==="
-log "Repos:  ${REPO_NAMES[*]}"
-log "Source: ${SOURCE_ORG} (${SOURCE_HOST})"
-log "Target: ${TARGET_ORG} (${TARGET_HOST})"
+log "Repos:    ${REPO_NAMES[*]}"
+log "Source:   ${SOURCE_ORG} (${SOURCE_HOST})"
+log "Target:   ${TARGET_ORG} (${TARGET_HOST})"
+log "Branches: ${branch_label}"
 log "Visibility: ${VISIBILITY} | Strip workflows: ${STRIP_WORKFLOWS} | Dry run: ${DRY_RUN}"
 log ""
 
@@ -156,45 +177,80 @@ for REPO_NAME in "${REPO_NAMES[@]}"; do
   description=$(source_api "repos/${SOURCE_ORG}/${REPO_NAME}" --jq '.description // ""' 2>/dev/null || echo "")
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    log "DRY RUN: Would clone ${REPO_NAME} (branch: ${default_branch})"
+    log "DRY RUN: Would clone ${REPO_NAME} (default branch: ${default_branch}, mode: ${branch_label})"
     OK_COUNT=$((OK_COUNT + 1))
     continue
   fi
 
-  # Clone, optionally strip workflows, create target, push
+  # -----------------------------------------------------------------------
+  # Clone source
+  # -----------------------------------------------------------------------
   log "Cloning ${REPO_NAME} from ${SOURCE_ORG}..."
-  clone_dir="${WORK_DIR}/${REPO_NAME}.git"
-  if ! git clone --bare "$(source_git_url "$REPO_NAME")" "$clone_dir" 2>&1; then
-    log "FAIL: Could not clone ${SOURCE_ORG}/${REPO_NAME}"
-    FAIL_COUNT=$((FAIL_COUNT + 1))
-    continue
-  fi
+  local_dir="${WORK_DIR}/${REPO_NAME}-work"
 
-  if [[ "$STRIP_WORKFLOWS" == "true" ]]; then
-    local_dir="${WORK_DIR}/${REPO_NAME}-work"
-    git clone "$clone_dir" "$local_dir" 2>&1
+  if [[ "$BRANCH_MODE" == "default" ]]; then
+    if ! git clone --single-branch --branch "$default_branch" \
+         "$(source_git_url "$REPO_NAME")" "$local_dir" 2>&1; then
+      log "FAIL: Could not clone ${SOURCE_ORG}/${REPO_NAME}"
+      FAIL_COUNT=$((FAIL_COUNT + 1))
+      continue
+    fi
+    branches_to_push=("$default_branch")
+  else
+    if ! git clone "$(source_git_url "$REPO_NAME")" "$local_dir" 2>&1; then
+      log "FAIL: Could not clone ${SOURCE_ORG}/${REPO_NAME}"
+      FAIL_COUNT=$((FAIL_COUNT + 1))
+      continue
+    fi
     pushd "$local_dir" >/dev/null
 
-    for remote_branch in $(git branch -r | grep -v HEAD | sed 's|origin/||' | xargs); do
-      git branch --track "$remote_branch" "origin/$remote_branch" 2>/dev/null || true
-    done
+    if [[ "$BRANCH_MODE" == "all" ]]; then
+      # Track every remote branch locally
+      for rb in $(git branch -r | grep -v HEAD | sed 's|origin/||' | xargs); do
+        git branch --track "$rb" "origin/$rb" 2>/dev/null || true
+      done
+      IFS=$'\n' read -r -d '' -a branches_to_push < <(git branch | sed 's/^[* ]*//' | xargs -n1 && printf '\0') || true
+    else
+      # Specific branches requested
+      branches_to_push=()
+      for b in "${BRANCH_LIST[@]}"; do
+        if git branch -r | grep -q "origin/${b}$"; then
+          git branch --track "$b" "origin/$b" 2>/dev/null || true
+          branches_to_push+=("$b")
+        else
+          log "WARN: branch '${b}' not found in ${REPO_NAME}, skipping"
+        fi
+      done
+      if [[ ${#branches_to_push[@]} -eq 0 ]]; then
+        log "FAIL: None of the requested branches exist in ${REPO_NAME}"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        popd >/dev/null
+        rm -rf "$local_dir"
+        continue
+      fi
+    fi
+    popd >/dev/null
+  fi
 
-    for branch in $(git branch | sed 's/^[* ]*//' | xargs); do
+  # -----------------------------------------------------------------------
+  # Strip workflows (if enabled) on each branch we're pushing
+  # -----------------------------------------------------------------------
+  if [[ "$STRIP_WORKFLOWS" == "true" ]]; then
+    pushd "$local_dir" >/dev/null
+    for branch in "${branches_to_push[@]}"; do
       git checkout "$branch" 2>&1 || continue
       if [[ -d ".github/workflows" ]]; then
         rm -rf ".github/workflows"
         git add -A && git commit -m "Remove CI workflows for workshop mirror" 2>&1 || true
       fi
     done
-
-    git checkout "$default_branch" 2>&1
+    git checkout "$default_branch" 2>&1 || git checkout "${branches_to_push[0]}" 2>&1
     popd >/dev/null
-
-    rm -rf "$clone_dir"
-    git clone --bare "$local_dir" "$clone_dir" 2>&1
-    rm -rf "$local_dir"
   fi
 
+  # -----------------------------------------------------------------------
+  # Create target repo
+  # -----------------------------------------------------------------------
   log "Creating ${TARGET_ORG}/${REPO_NAME} (${VISIBILITY})..."
   if ! target_api "orgs/${TARGET_ORG}/repos" \
     -X POST \
@@ -205,23 +261,37 @@ for REPO_NAME in "${REPO_NAMES[@]}"; do
     --silent 2>&1; then
     log "FAIL: Could not create ${TARGET_ORG}/${REPO_NAME}"
     FAIL_COUNT=$((FAIL_COUNT + 1))
-    rm -rf "$clone_dir"
+    rm -rf "$local_dir"
     continue
   fi
 
-  log "Pushing all branches and tags..."
-  pushd "$clone_dir" >/dev/null
-  if ! git push --mirror "$(target_git_url "$REPO_NAME")" 2>&1; then
-    log "FAIL: Could not push to ${TARGET_ORG}/${REPO_NAME}"
-    FAIL_COUNT=$((FAIL_COUNT + 1))
-    popd >/dev/null
-    rm -rf "$clone_dir"
-    continue
-  fi
+  # -----------------------------------------------------------------------
+  # Push selected branches + tags
+  # -----------------------------------------------------------------------
+  log "Pushing ${#branches_to_push[@]} branch(es) and tags..."
+  pushd "$local_dir" >/dev/null
+  git remote add target "$(target_git_url "$REPO_NAME")" 2>/dev/null || \
+    git remote set-url target "$(target_git_url "$REPO_NAME")"
+
+  push_failed=false
+  for branch in "${branches_to_push[@]}"; do
+    if ! git push target "$branch" 2>&1; then
+      log "FAIL: Could not push branch '${branch}' to ${TARGET_ORG}/${REPO_NAME}"
+      push_failed=true
+    fi
+  done
+  # Always push tags
+  git push target --tags 2>&1 || true
+
   popd >/dev/null
+  rm -rf "$local_dir"
 
-  rm -rf "$clone_dir"
-  log "OK: ${TARGET_ORG}/${REPO_NAME}"
+  if [[ "$push_failed" == "true" ]]; then
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    continue
+  fi
+
+  log "OK: ${TARGET_ORG}/${REPO_NAME} (${#branches_to_push[@]} branch(es))"
   OK_COUNT=$((OK_COUNT + 1))
 done
 
