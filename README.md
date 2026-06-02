@@ -78,6 +78,7 @@ operator/
 │   ├── provision-workshop.sh          # End-to-end: create org → permissions → invites → sessions
 │   ├── teardown-workshop.sh           # Remove org and clean up permissions
 │   ├── invite-participants.sh         # Invite users by email to an org
+│   ├── clone-repo.sh                  # Clone a single public repo as a private mirror
 │   ├── mirror-github-org.sh           # Mirror repos between GitHub orgs
 │   ├── cleanup-all.sh                 # Run all post-workshop cleanup tasks
 │   ├── sanitize-pr-pii.sh            # Remove "Requested by" PII from PRs
@@ -93,7 +94,8 @@ operator/
 ├── .github/workflows/
 │   └── pr-pii-check.yml             # CI workflow to block PRs with PII
 ├── templates/
-│   └── event-readme.md               # Template for new event READMEs
+│   ├── event-readme.md               # Template for new event READMEs
+│   └── agent-prompt-setup-event.md   # Agent prompt for local AI-driven event setup
 └── docs/
     ├── api-reference-cheatsheet.md    # Quick reference for all v3 API endpoints used
     ├── facilitator-guide.md           # Day-of logistics, pacing, common issues
@@ -120,10 +122,15 @@ operator/
 
 #### 1.1 Mirror Repos to the Mirror GitHub Org
 
-Repos from `Cognition-Partner-Workshops` must exist in `Cognition-Partner-Workshops-mirror`. Use `scripts/mirror-github-org.sh`:
+Repos from `Cognition-Partner-Workshops` must exist in `Cognition-Partner-Workshops-mirror`. You can mirror in bulk or one repo at a time.
+
+##### Bulk mirror
+
+Use `scripts/mirror-github-org.sh`:
 
 ```bash
 # Mirror all repos (skips existing by default, strips CI workflows)
+# Note: workshop-metadata and operator are excluded by default
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror
 
 # Mirror only use-case repos
@@ -138,14 +145,66 @@ Repos from `Cognition-Partner-Workshops` must exist in `Cognition-Partner-Worksh
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
   --dry-run
 
+# Include the default-excluded repos (workshop-metadata, operator)
+./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
+  --no-default-excludes
+
 # Mirror from github.com to a GitHub Enterprise Server instance
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops target-org \
   --source-host=github.com --target-host=ghes.example.com
 ```
 
-Options: `--include=<glob>`, `--exclude=<glob>`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--config=<file>`, `--source-host=<host>`, `--target-host=<host>`.
+Options: `--include=<glob>`, `--exclude=<glob>`, `--no-default-excludes`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--config=<file>`, `--source-host=<host>`, `--target-host=<host>`.
+
+> **Default exclusions:** `workshop-metadata` and `operator` are excluded by default. `workshop-metadata` contains hyperlinks to the source org that would be broken in a mirror — use a local AI agent with `templates/agent-prompt-setup-event.md` to selectively copy relevant content instead. The `operator` repo should only be copied into the internal operations org, not the attendee org (see [§ 1.1.2](#112-copy-operator-to-internal-ops-org)).
 
 > **Cross-host mirroring (GHES):** When the source and target orgs live on different GitHub instances, use `--source-host` and `--target-host`. The `gh` CLI must be authenticated to both hosts (`gh auth login --hostname <host>`). The script verifies auth to both hosts before starting.
+
+##### Single-repo clone
+
+Use `scripts/clone-repo.sh` to mirror a single repo by name:
+
+```bash
+# Clone a single repo as a private mirror
+./scripts/clone-repo.sh uc-bdd-test-generation-rest-api
+
+# Clone to a different target org
+./scripts/clone-repo.sh otterworks --target-org=MyPrivateOrg
+
+# Clone to a GitHub Enterprise Server instance
+./scripts/clone-repo.sh otterworks --target-org=MyOrg --target-host=ghes.example.com
+
+# Preview
+./scripts/clone-repo.sh otterworks --dry-run
+```
+
+Options: `--source-org=<org>`, `--target-org=<org>`, `--source-host=<host>`, `--target-host=<host>`, `--visibility=<v>`, `--strip-workflows` (default), `--no-skip-existing`, `--dry-run`.
+
+> **Blocked repos:** `clone-repo.sh` refuses to clone `workshop-metadata` and prints guidance to use the agent prompt instead.
+
+##### 1.1.2 Copy operator to internal ops org
+
+The operator repo should live in the **facilitator's internal Devin org** (same enterprise, separate from the attendee org) so facilitators can run provisioning scripts from Devin sessions:
+
+```bash
+./scripts/clone-repo.sh operator --target-org=<INTERNAL_OPS_ORG>
+```
+
+Then add git permissions for it in the internal ops Devin org using the Devin v3 API or `provision-workshop.sh`.
+
+#### 1.1.3 Agent-Driven Setup (Recommended)
+
+Instead of manually identifying which repos to mirror, use a **local AI coding agent** (Devin, Cursor, Copilot, etc.) with the prompt in [`templates/agent-prompt-setup-event.md`](templates/agent-prompt-setup-event.md). The agent will:
+
+1. List available workshops and modules from your local `workshop-metadata/` clone
+2. Let you pick which ones to include
+3. Resolve the required repos from each workshop/module
+4. Run `clone-repo.sh` for each repo
+5. Generate a workshop config JSON
+6. Run `provision-workshop.sh` to create the attendee Devin org
+7. Copy the operator repo into the internal ops org
+
+This avoids cloning `workshop-metadata` (whose links would break) and instead reads it locally to drive the setup.
 
 #### 1.2 Create a Workshop Config
 
@@ -326,6 +385,7 @@ stay in this operator repo; attendee-facing narrative goes to `workshop-metadata
 
 | Document | Description |
 |----------|-------------|
+| [Agent-Driven Event Setup](templates/agent-prompt-setup-event.md) | Prompt for a local AI coding agent to interactively provision a workshop (mirror repos, create org, set permissions) |
 | [Author a Devin Demo](.workshop/playbooks/author-devin-demo.devin.md) | Playbook (`!author-devin-demo`) for building a new verifiable Devin demo and its playbook/skill/presenter artifacts |
 | [Facilitator Guide](docs/facilitator-guide.md) | Pre-event checklist, day-of logistics, pacing, common issues, format variations |
 | [Workshop Design Guide](docs/workshop-design-guide.md) | How to create modules, workshops, and events; audience recommendations; time budgets |
