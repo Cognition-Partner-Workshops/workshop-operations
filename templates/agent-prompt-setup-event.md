@@ -50,13 +50,15 @@ process using the scripts in the `operator` repo.
      build the full list of repos needed.
    - Show me the list and let me confirm or adjust.
 
-3. **Create private mirrors of each repo.**
-   - For each repo, run:
+3. **Create private mirrors of the repos.**
+   - Run a single command with all repo names:
      ```
-     ./scripts/clone-repo.sh <REPO_NAME> \
+     ./scripts/clone-repo.sh <REPO_A> <REPO_B> <REPO_C> ... \
        --target-org=<TARGET_ORG>
      ```
-   - Do NOT mirror `workshop-metadata` — its hyperlinks would be broken.
+   - The script processes them in sequence and prints a summary.
+   - Do NOT mirror `workshop-metadata` — its hyperlinks would be broken
+     (the script blocks it automatically).
    - Do NOT mirror `operator` into the attendee org — it goes into the
      internal operations org only (see step 6).
 

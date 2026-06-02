@@ -78,7 +78,7 @@ operator/
 │   ├── provision-workshop.sh          # End-to-end: create org → permissions → invites → sessions
 │   ├── teardown-workshop.sh           # Remove org and clean up permissions
 │   ├── invite-participants.sh         # Invite users by email to an org
-│   ├── clone-repo.sh                  # Clone a single public repo as a private mirror
+│   ├── clone-repo.sh                  # Clone one or more public repos as private mirrors
 │   ├── mirror-github-org.sh           # Mirror repos between GitHub orgs
 │   ├── cleanup-all.sh                 # Run all post-workshop cleanup tasks
 │   ├── sanitize-pr-pii.sh            # Remove "Requested by" PII from PRs
@@ -160,13 +160,16 @@ Options: `--include=<glob>`, `--exclude=<glob>`, `--no-default-excludes`, `--vis
 
 > **Cross-host mirroring (GHES):** When the source and target orgs live on different GitHub instances, use `--source-host` and `--target-host`. The `gh` CLI must be authenticated to both hosts (`gh auth login --hostname <host>`). The script verifies auth to both hosts before starting.
 
-##### Single-repo clone
+##### Clone by name (single or batch)
 
-Use `scripts/clone-repo.sh` to mirror a single repo by name:
+Use `scripts/clone-repo.sh` to import one or more repos by name:
 
 ```bash
-# Clone a single repo as a private mirror
+# Clone a single repo
 ./scripts/clone-repo.sh uc-bdd-test-generation-rest-api
+
+# Clone multiple repos in one command
+./scripts/clone-repo.sh otterworks uc-bdd-test-generation-rest-api ts-angular-realworld-example-app
 
 # Clone to a different target org
 ./scripts/clone-repo.sh otterworks --target-org=MyPrivateOrg
@@ -174,11 +177,13 @@ Use `scripts/clone-repo.sh` to mirror a single repo by name:
 # Clone to a GitHub Enterprise Server instance
 ./scripts/clone-repo.sh otterworks --target-org=MyOrg --target-host=ghes.example.com
 
-# Preview
-./scripts/clone-repo.sh otterworks --dry-run
+# Preview without creating anything
+./scripts/clone-repo.sh otterworks ts-angular-realworld-example-app --dry-run
 ```
 
 Options: `--source-org=<org>`, `--target-org=<org>`, `--source-host=<host>`, `--target-host=<host>`, `--visibility=<v>`, `--strip-workflows` (default), `--no-skip-existing`, `--dry-run`.
+
+The script processes every repo in sequence and prints a summary at the end (OK / Skipped / Blocked / Failed).
 
 > **Blocked repos:** `clone-repo.sh` refuses to clone `workshop-metadata` and prints guidance to use the agent prompt instead.
 
