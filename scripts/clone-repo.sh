@@ -100,22 +100,90 @@ BLOCKED_REPOS="workshop-metadata"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
-source_api() { gh api --hostname "$SOURCE_HOST" "$@"; }
-target_api() { gh api --hostname "$TARGET_HOST" "$@"; }
+# If MIRROR_TOKEN is set, use curl directly to bypass gh proxy.
+# Otherwise fall back to gh api.
+if [[ -n "${MIRROR_TOKEN:-}" ]]; then
+  source_api() {
+    local endpoint="$1"; shift
+    local method="GET"
+    local data_args=()
+    local jq_filter=""
+    local silent=false
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -X) method="$2"; shift 2 ;;
+        -f) data_args+=("$2"); shift 2 ;;
+        -F) data_args+=("$2"); shift 2 ;;
+        --jq) jq_filter="$2"; shift 2 ;;
+        --silent) silent=true; shift ;;
+        *) shift ;;
+      esac
+    done
+    local url="https://api.${SOURCE_HOST}/${endpoint}"
+    local result http_code
+    if [[ "$method" == "GET" ]]; then
+      http_code=$(curl -s -o /tmp/_api_resp.json -w "%{http_code}" -H "Authorization: Bearer ${MIRROR_TOKEN}" -H "Accept: application/vnd.github+json" "$url")
+      result=$(cat /tmp/_api_resp.json)
+      if [[ "$http_code" -ge 400 ]]; then
+        if [[ "$silent" == "true" ]]; then return 1; fi
+        echo "$result" >&2
+        return 1
+      fi
+    else
+      # Build JSON body from -f/-F args
+      local json_body="{}"
+      for arg in "${data_args[@]}"; do
+        local key="${arg%%=*}"
+        local val="${arg#*=}"
+        if [[ "$val" == "true" || "$val" == "false" ]]; then
+          json_body=$(echo "$json_body" | jq --arg k "$key" --argjson v "$val" '. + {($k): $v}')
+        else
+          json_body=$(echo "$json_body" | jq --arg k "$key" --arg v "$val" '. + {($k): $v}')
+        fi
+      done
+      http_code=$(curl -s -o /tmp/_api_resp.json -w "%{http_code}" -X "$method" -H "Authorization: Bearer ${MIRROR_TOKEN}" -H "Accept: application/vnd.github+json" "$url" -d "$json_body")
+      result=$(cat /tmp/_api_resp.json)
+      if [[ "$http_code" -ge 400 ]]; then
+        if [[ "$silent" == "true" ]]; then return 1; fi
+        echo "$result" >&2
+        return 1
+      fi
+    fi
+    if [[ -n "$jq_filter" ]]; then
+      echo "$result" | jq -r "$jq_filter"
+    elif [[ "$silent" == "true" ]]; then
+      echo "$result" > /dev/null
+    else
+      echo "$result"
+    fi
+  }
+  target_api() { source_api "$@"; }
+else
+  source_api() { gh api --hostname "$SOURCE_HOST" "$@"; }
+  target_api() { gh api --hostname "$TARGET_HOST" "$@"; }
+fi
 
 source_git_url() { echo "https://${SOURCE_HOST}/${SOURCE_ORG}/${1}.git"; }
-target_git_url() { echo "https://${TARGET_HOST}/${TARGET_ORG}/${1}.git"; }
+target_git_url() {
+  if [[ -n "${MIRROR_TOKEN:-}" ]]; then
+    echo "https://x-access-token:${MIRROR_TOKEN}@${TARGET_HOST}/${TARGET_ORG}/${1}.git"
+  else
+    echo "https://${TARGET_HOST}/${TARGET_ORG}/${1}.git"
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
-for host in "$SOURCE_HOST" "$TARGET_HOST"; do
-  if ! gh auth status --hostname "$host" >/dev/null 2>&1; then
-    log "ERROR: gh CLI is not authenticated to ${host}"
-    log "  Run: gh auth login --hostname ${host}"
-    exit 1
-  fi
-done
+if [[ -z "${MIRROR_TOKEN:-}" ]]; then
+  for host in "$SOURCE_HOST" "$TARGET_HOST"; do
+    if ! gh auth status --hostname "$host" >/dev/null 2>&1; then
+      log "ERROR: gh CLI is not authenticated to ${host}"
+      log "  Run: gh auth login --hostname ${host}"
+      exit 1
+    fi
+  done
+fi
 
 branch_label="default branch only"
 if [[ "$BRANCH_MODE" == "all" ]]; then
