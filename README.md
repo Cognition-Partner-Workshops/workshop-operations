@@ -43,6 +43,36 @@ Everything a **workshop facilitator or host** needs to plan, provision, run, and
 | **jq** | JSON processor (used by all scripts) |
 | **curl** | HTTP client |
 | **gh CLI** | GitHub CLI (used by mirror and cleanup scripts; requires `repo`, `admin:org`, `pull-request` scopes) |
+| **GitHub PAT** (optional) | A fine-grained PAT in `GITHUB_MIRROR_PAT` — needed when running `clone-repo.sh` from a Devin VM or anywhere `gh` CLI isn't authenticated to the target org (see [Creating a GitHub Fine-Grained PAT](#creating-a-github-fine-grained-pat) below) |
+
+### Creating a GitHub Fine-Grained PAT
+
+`clone-repo.sh` can authenticate via the `GITHUB_MIRROR_PAT` environment variable instead of `gh` CLI. This is useful when running from a Devin session where `gh` is authenticated via a proxy that doesn't have access to the target org.
+
+1. Go to **<https://github.com/settings/personal-access-tokens/new>**
+2. **Token name:** `devin-workshop-mirror` (or any descriptive name)
+3. **Expiration:** 7 days (or as long as the event requires)
+4. **Resource owner:** Select the **target organization** (e.g. `Cognition-Partner-Workshops-mirror`)
+5. **Repository access:** "All repositories" (the script creates new repos that don't exist yet at token creation time)
+6. **Repository permissions:**
+
+   | Permission | Level | Why |
+   |---|---|---|
+   | **Contents** | Read and write | Clone source repos, push to target |
+   | **Administration** | Read and write | Create new repos via the API |
+   | **Metadata** | Read-only | Auto-granted; needed for API calls |
+
+7. Click **Generate token** and copy it.
+
+> **Org approval:** If the target org requires admin approval for fine-grained PATs, an org admin must approve the pending token at `https://github.com/organizations/<TARGET_ORG>/settings/personal-access-tokens/active`.
+
+```bash
+# Set the token before running clone-repo.sh
+export GITHUB_MIRROR_PAT="github_pat_..."
+./scripts/clone-repo.sh otterworks uc-bdd-test-generation-rest-api
+```
+
+> **No workflow scope needed:** The script strips `.github/workflows/` by default, so the PAT does not need the `workflow` permission.
 
 ## Quick Start
 
@@ -68,6 +98,10 @@ export DEVIN_API_KEY="cog_your_enterprise_service_user_key"
 ```
 operator/
 ├── README.md                          # This guide
+├── .agents/
+│   └── skills/
+│       └── mirror-workshop-repos/     # Devin skill: mirror repos for a workshop
+│           └── SKILL.md
 ├── .workshop/
 │   └── playbooks/                     # Portable Devin Playbook sources (*.devin.md) for authoring demos
 ├── configs/
@@ -200,11 +234,19 @@ The operator repo should live in the **facilitator's internal Devin org** (same 
 
 Then add git permissions for it in the internal ops Devin org using the Devin v3 API or `provision-workshop.sh`.
 
-#### 1.1.3 Agent-Driven Setup (Recommended)
+#### 1.1.3 Mirror Repos with Devin (Recommended)
 
-Instead of manually identifying which repos to mirror, use a **local AI coding agent** (Devin, Cursor, Copilot, etc.) with the prompt in [`templates/agent-prompt-setup-event.md`](templates/agent-prompt-setup-event.md). The agent will:
+If this operator repo is connected to a Devin org, you can ask Devin to mirror the repos for a workshop using the built-in **`mirror-workshop-repos`** skill. Just tell Devin which workshop you need:
 
-1. List available workshops and modules from your local `workshop-metadata/` clone
+> *"I need to get the code in my git remote to host the application-development-maintenance workshop"*
+
+Devin will read the workshop README from `workshop-instructions`, extract the required repos, ask for a `GITHUB_MIRROR_PAT` if one isn't set, and run `clone-repo.sh` to create private copies in the target org. See [`.agents/skills/mirror-workshop-repos/SKILL.md`](.agents/skills/mirror-workshop-repos/SKILL.md).
+
+#### 1.1.4 Agent-Driven Full Event Setup
+
+For end-to-end provisioning (not just mirroring repos, but also creating the Devin org, inviting participants, and setting up environment configs), use a **local AI coding agent** (Devin, Cursor, Copilot, etc.) with the prompt in [`templates/agent-prompt-setup-event.md`](templates/agent-prompt-setup-event.md). The agent will:
+
+1. List available workshops and modules from `workshop-instructions`
 2. Let you pick which ones to include
 3. Resolve the required repos from each workshop/module
 4. Run `clone-repo.sh` for each repo
@@ -212,7 +254,7 @@ Instead of manually identifying which repos to mirror, use a **local AI coding a
 6. Run `provision-workshop.sh` to create the attendee Devin org
 7. Copy the operator repo into the internal ops org
 
-This avoids cloning `workshop-metadata` (whose links would break) and instead reads it locally to drive the setup.
+This avoids cloning `workshop-instructions` (whose links would break) and instead reads it to extract the required repos.
 
 #### 1.2 Create a Workshop Config
 

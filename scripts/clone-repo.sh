@@ -96,13 +96,16 @@ if [[ ${#REPO_NAMES[@]} -eq 0 ]]; then
 fi
 
 # Repos that should not be mirrored directly
-BLOCKED_REPOS="workshop-metadata"
+BLOCKED_REPOS="workshop-metadata workshop-instructions"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
-# If MIRROR_TOKEN is set, use curl directly to bypass gh proxy.
+# Resolve the PAT: prefer GITHUB_MIRROR_PAT, fall back to MIRROR_TOKEN
+_PAT="${GITHUB_MIRROR_PAT:-${MIRROR_TOKEN:-}}"
+
+# If a PAT is set, use curl directly to bypass gh proxy.
 # Otherwise fall back to gh api.
-if [[ -n "${MIRROR_TOKEN:-}" ]]; then
+if [[ -n "$_PAT" ]]; then
   source_api() {
     local endpoint="$1"; shift
     local method="GET"
@@ -122,7 +125,7 @@ if [[ -n "${MIRROR_TOKEN:-}" ]]; then
     local url="https://api.${SOURCE_HOST}/${endpoint}"
     local result http_code
     if [[ "$method" == "GET" ]]; then
-      http_code=$(curl -s -o /tmp/_api_resp.json -w "%{http_code}" -H "Authorization: Bearer ${MIRROR_TOKEN}" -H "Accept: application/vnd.github+json" "$url")
+      http_code=$(curl -s -o /tmp/_api_resp.json -w "%{http_code}" -H "Authorization: Bearer ${_PAT}" -H "Accept: application/vnd.github+json" "$url")
       result=$(cat /tmp/_api_resp.json)
       if [[ "$http_code" -ge 400 ]]; then
         if [[ "$silent" == "true" ]]; then return 1; fi
@@ -141,7 +144,7 @@ if [[ -n "${MIRROR_TOKEN:-}" ]]; then
           json_body=$(echo "$json_body" | jq --arg k "$key" --arg v "$val" '. + {($k): $v}')
         fi
       done
-      http_code=$(curl -s -o /tmp/_api_resp.json -w "%{http_code}" -X "$method" -H "Authorization: Bearer ${MIRROR_TOKEN}" -H "Accept: application/vnd.github+json" "$url" -d "$json_body")
+      http_code=$(curl -s -o /tmp/_api_resp.json -w "%{http_code}" -X "$method" -H "Authorization: Bearer ${_PAT}" -H "Accept: application/vnd.github+json" "$url" -d "$json_body")
       result=$(cat /tmp/_api_resp.json)
       if [[ "$http_code" -ge 400 ]]; then
         if [[ "$silent" == "true" ]]; then return 1; fi
@@ -165,8 +168,8 @@ fi
 
 source_git_url() { echo "https://${SOURCE_HOST}/${SOURCE_ORG}/${1}.git"; }
 target_git_url() {
-  if [[ -n "${MIRROR_TOKEN:-}" ]]; then
-    echo "https://x-access-token:${MIRROR_TOKEN}@${TARGET_HOST}/${TARGET_ORG}/${1}.git"
+  if [[ -n "$_PAT" ]]; then
+    echo "https://x-access-token:${_PAT}@${TARGET_HOST}/${TARGET_ORG}/${1}.git"
   else
     echo "https://${TARGET_HOST}/${TARGET_ORG}/${1}.git"
   fi
@@ -175,7 +178,7 @@ target_git_url() {
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
-if [[ -z "${MIRROR_TOKEN:-}" ]]; then
+if [[ -z "$_PAT" ]]; then
   for host in "$SOURCE_HOST" "$TARGET_HOST"; do
     if ! gh auth status --hostname "$host" >/dev/null 2>&1; then
       log "ERROR: gh CLI is not authenticated to ${host}"
@@ -225,8 +228,8 @@ for REPO_NAME in "${REPO_NAMES[@]}"; do
   if [[ "$is_blocked" == "true" ]]; then
     log "BLOCKED: '${REPO_NAME}' should not be cloned directly."
     log "  Its hyperlinks reference source org URLs that would be broken in a mirror."
-    log "  Instead, use a local AI coding agent with the prompt in"
-    log "  templates/agent-prompt-setup-event.md to selectively copy relevant content."
+    log "  Instead, read it directly to identify the repos you need, then mirror"
+    log "  those repos. See the mirror-workshop-repos skill or templates/agent-prompt-setup-event.md."
     BLOCKED_COUNT=$((BLOCKED_COUNT + 1))
     continue
   fi
