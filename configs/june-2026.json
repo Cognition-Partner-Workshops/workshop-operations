@@ -1,6 +1,6 @@
 {
-  "event_name": "Enterprise Modernization & Data Migration Workshop",
-  "org_name": "Enterprise-Modernization-Data-Migration",
+  "event_name": "CHANGEME — Event Name",
+  "org_name": "CHANGEME-Org-Name",
   "git_connection_id": "git-connection-f76021b797ec4a80a62f8ae9dfc1c45c",
   "max_session_acu_limit": 250,
   "max_cycle_acu_limit": 250,
@@ -10,6 +10,9 @@
     "Cognition-Partner-Workshops-mirror/ts-sas-legacy-analytics",
     "Cognition-Partner-Workshops-mirror/uc-data-migration-sas-to-snowflake",
     "Cognition-Partner-Workshops-mirror/uc-spring-boot-upgrade-microservice-extraction",
+    "Cognition-Partner-Workshops-mirror/otterworks",
+    "Cognition-Partner-Workshops-mirror/app_petclinic-angular",
+    "Cognition-Partner-Workshops-mirror/ts-java-spring-petclinic-rest-api",
     "Cognition-Partner-Workshops-mirror/timesheet-app",
     "Cognition-Partner-Workshops-mirror/ts-cobol-carddemo",
     "Cognition-Partner-Workshops-mirror/uc-data-migration-sas-to-databricks"
