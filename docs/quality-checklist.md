@@ -23,7 +23,7 @@ Use this checklist when authoring or reviewing modules, workshops, and event mat
 
 ## General Themes Integration
 
-Every module should incorporate applicable principles from `shared/general-themes/`. Not every theme applies to every module — use judgment.
+Every module should incorporate applicable principles from `reference/general-themes/`. Not every theme applies to every module — use judgment.
 
 - [ ] **When to use Devin** (`when-to-use-devin.md`) — Is the module's use case positioned as event-driven, large-scale, or capacity-constrained work? Does it explain why Devin is suited for this type of task?
 - [ ] **Architecture strengths** (`architecture-strengths.md`) — Does the module reference clean-room execution, the shared context layer, or context retrieval where relevant?

@@ -11,7 +11,7 @@ All repositories in the [Cognition-Partner-Workshops](https://github.com/Cogniti
 | **Use cases** (`uc-`) | `uc-<task-description>` | Task-first — people go here when they care about the exercise (tech-agnostic). Name describes the task/tool, NOT the underlying tech stack. | `uc-cve-remediation-regulatory-compliance`, `uc-legacy-modernization-cobol-to-java` |
 | **Industry verticals** (`i-`) | `i-<industry>-<identity>` | Domain-first — industry-specific repos. | `i-banking-loan-processing` _(none yet)_ |
 | **Well-known forks** | Keep upstream name | Recognition — everyone already knows these names. | `keycloak`, `fineract`, `openmrs-core` |
-| **Internal tooling** | Descriptive name | Self-explanatory. | `workshop-metadata`, `operator`, `platform-engineering-shared-services` |
+| **Internal tooling** | Descriptive name | Self-explanatory. | `workshop-content`, `workshop-operations`, `platform-engineering-shared-services` |
 
 ## Rules
 

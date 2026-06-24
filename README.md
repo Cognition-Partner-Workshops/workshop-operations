@@ -1,4 +1,4 @@
-# Workshop Operator Guide
+# Workshop Operations Guide
 
 Everything a **workshop facilitator or host** needs to plan, provision, run, and tear down a Devin Enterprise workshop. This repo contains:
 
@@ -8,7 +8,7 @@ Everything a **workshop facilitator or host** needs to plan, provision, run, and
 - **General themes** — positioning narratives, architecture strengths, platform capabilities, value framing
 - **Module facilitator notes** — per-module setup, MCP configuration, and presales positioning
 
-> **Looking for the hands-on lab content?** Attendee-facing modules, workshops, and prompts live in the [workshop-metadata](https://github.com/Cognition-Partner-Workshops/workshop-metadata) repo. This repo is for the people running the event, not the people attending it.
+> **Looking for the hands-on lab content?** Attendee-facing modules, workshops, and prompts live in the [workshop-content](https://github.com/Cognition-Partner-Workshops/workshop-content) repo. This repo is for the people running the event, not the people attending it.
 
 ## Architecture Overview
 
@@ -39,7 +39,7 @@ Everything a **workshop facilitator or host** needs to plan, provision, run, and
 | **Enterprise Service User API Key** | A `cog_`-prefixed key with enterprise admin permissions (`ManageOrganizations`, `ManageGitIntegrations`, `ManageOrgSessions`, `ImpersonateOrgSessions`, `ManageAccountMembership`) |
 | **GitHub App** | The Devin GitHub App installed on `Cognition-Partner-Workshops-mirror` with access to the repos needed for the workshop |
 | **Mirror GitHub Org** | Repos from `Cognition-Partner-Workshops` mirrored into `Cognition-Partner-Workshops-mirror` |
-| **Workshop metadata** | An event README in `workshop-metadata/events/<event-dir>/` listing the repos required |
+| **Event definition** | An event README in `workshop-content/events/<event-dir>/` listing the repos required |
 | **jq** | JSON processor (used by all scripts) |
 | **curl** | HTTP client |
 | **gh CLI** | GitHub CLI (used by mirror and cleanup scripts; requires `repo`, `admin:org`, `pull-request` scopes) |
@@ -96,7 +96,7 @@ export DEVIN_API_KEY="cog_your_enterprise_service_user_key"
 ## Directory Structure
 
 ```
-operator/
+workshop-operations/
 ├── README.md                          # This guide
 ├── .agents/
 │   └── skills/
@@ -164,7 +164,7 @@ Use `scripts/mirror-github-org.sh`:
 
 ```bash
 # Mirror all repos (skips existing by default, strips CI workflows)
-# Note: workshop-metadata and operator are excluded by default
+# Note: workshop-content and workshop-operations are excluded by default
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror
 
 # Mirror only use-case repos
@@ -179,7 +179,7 @@ Use `scripts/mirror-github-org.sh`:
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
   --dry-run
 
-# Include the default-excluded repos (workshop-metadata, operator)
+# Include the default-excluded repos (workshop-content, workshop-operations)
 ./scripts/mirror-github-org.sh Cognition-Partner-Workshops Cognition-Partner-Workshops-mirror \
   --no-default-excludes
 
@@ -190,7 +190,7 @@ Use `scripts/mirror-github-org.sh`:
 
 Options: `--include=<glob>`, `--exclude=<glob>`, `--no-default-excludes`, `--visibility=private`, `--strip-workflows` (default), `--no-skip-existing`, `--config=<file>`, `--source-host=<host>`, `--target-host=<host>`.
 
-> **Default exclusions:** `workshop-metadata` and `operator` are excluded by default. `workshop-metadata` contains hyperlinks to the source org that would be broken in a mirror — use a local AI agent with `templates/agent-prompt-setup-event.md` to selectively copy relevant content instead. The `operator` repo should only be copied into the internal operations org, not the attendee org (see [§ 1.1.2](#112-copy-operator-to-internal-ops-org)).
+> **Default exclusions:** `workshop-content` and `workshop-operations` are excluded by default. `workshop-content` contains hyperlinks to the source org that would be broken in a mirror — use a local AI agent with `templates/agent-prompt-setup-event.md` to selectively copy relevant content instead. The `workshop-operations` repo should only be copied into the internal operations org, not the attendee org (see [§ 1.1.2](#112-copy-workshop-operations-to-internal-ops-org)).
 
 > **Cross-host mirroring (GHES):** When the source and target orgs live on different GitHub instances, use `--source-host` and `--target-host`. The `gh` CLI must be authenticated to both hosts (`gh auth login --hostname <host>`). The script verifies auth to both hosts before starting.
 
@@ -222,39 +222,39 @@ Options: `--source-org=<org>`, `--target-org=<org>`, `--source-host=<host>`, `--
 
 The script processes every repo in sequence and prints a summary at the end (OK / Skipped / Blocked / Failed).
 
-> **Blocked repos:** `clone-repo.sh` refuses to clone `workshop-metadata` and prints guidance to use the agent prompt instead.
+> **Blocked repos:** `clone-repo.sh` refuses to clone `workshop-content` and prints guidance to use the agent prompt instead.
 
-##### 1.1.2 Copy operator to internal ops org
+##### 1.1.2 Copy workshop-operations to internal ops org
 
-The operator repo should live in the **facilitator's internal Devin org** (same enterprise, separate from the attendee org) so facilitators can run provisioning scripts from Devin sessions:
+The workshop-operations repo should live in the **facilitator's internal Devin org** (same enterprise, separate from the attendee org) so facilitators can run provisioning scripts from Devin sessions:
 
 ```bash
-./scripts/clone-repo.sh operator --target-org=<INTERNAL_OPS_ORG>
+./scripts/clone-repo.sh workshop-operations --target-org=<INTERNAL_OPS_ORG>
 ```
 
 Then add git permissions for it in the internal ops Devin org using the Devin v3 API or `provision-workshop.sh`.
 
 #### 1.1.3 Mirror Repos with Devin (Recommended)
 
-If this operator repo is connected to a Devin org, you can ask Devin to mirror the repos for a workshop using the built-in **`mirror-workshop-repos`** skill. Just tell Devin which workshop you need:
+If this workshop-operations repo is connected to a Devin org, you can ask Devin to mirror the repos for a workshop using the built-in **`mirror-workshop-repos`** skill. Just tell Devin which workshop you need:
 
 > *"I need to get the code in my git remote to host the application-development-maintenance workshop"*
 
-Devin will read the workshop README from `workshop-instructions`, extract the required repos, ask for a `GITHUB_MIRROR_PAT` if one isn't set, and run `clone-repo.sh` to create private copies in the target org. See [`.agents/skills/mirror-workshop-repos/SKILL.md`](.agents/skills/mirror-workshop-repos/SKILL.md).
+Devin will read the workshop README from `workshop-content`, extract the required repos, ask for a `GITHUB_MIRROR_PAT` if one isn't set, and run `clone-repo.sh` to create private copies in the target org. See [`.agents/skills/mirror-workshop-repos/SKILL.md`](.agents/skills/mirror-workshop-repos/SKILL.md).
 
 #### 1.1.4 Agent-Driven Full Event Setup
 
 For end-to-end provisioning (not just mirroring repos, but also creating the Devin org, inviting participants, and setting up environment configs), use a **local AI coding agent** (Devin, Cursor, Copilot, etc.) with the prompt in [`templates/agent-prompt-setup-event.md`](templates/agent-prompt-setup-event.md). The agent will:
 
-1. List available workshops and modules from `workshop-instructions`
+1. List available workshops and modules from `workshop-content`
 2. Let you pick which ones to include
 3. Resolve the required repos from each workshop/module
 4. Run `clone-repo.sh` for each repo
 5. Generate a workshop config JSON
 6. Run `provision-workshop.sh` to create the attendee Devin org
-7. Copy the operator repo into the internal ops org
+7. Copy the workshop-operations repo into the internal ops org
 
-This avoids cloning `workshop-instructions` (whose links would break) and instead reads it to extract the required repos.
+This avoids cloning `workshop-content` (whose links would break) and instead reads it to extract the required repos.
 
 #### 1.2 Create a Workshop Config
 
@@ -401,7 +401,7 @@ This:
 
 `.workshop/` is a convention directory for **demo-authoring assets** — content
 that helps a facilitator build and run a Devin demo but is neither application
-code nor attendee-facing lab content. Here in the operator repo it holds the
+code nor attendee-facing lab content. Here in the workshop-operations repo it holds the
 **meta-playbooks** for authoring demos; in a use-case/code repo it holds the
 demo's own portable playbook source.
 
@@ -419,7 +419,7 @@ A Devin demo is built from three decoupled artifacts, each with a clear home:
 |---|---|---|---|
 | **Playbook** | `<repo>/.workshop/playbooks/*.devin.md` | copied into the org by the facilitator; invoked via `!macro` | portable, general procedure |
 | **Skill** | `<repo>/.agents/skills/<name>/SKILL.md` | auto-loaded by Devin when working in the repo | repo-specific mechanics (commands, paths, namespaces) |
-| **Presenter thread** | `workshop-metadata/demos/<category>/*-demo.md` | read by the presenter | the single linear demo script |
+| **Presenter thread** | `workshop-content/demos/<category>/*-demo.md` | read by the presenter | the single linear demo script |
 
 To author a new demo this way, use the
 [`!author-devin-demo`](.workshop/playbooks/author-devin-demo.devin.md) playbook
@@ -429,7 +429,7 @@ artifacts, and showcasing Devin's differentiated value (orchestrator → child
 fan-out, scheduled Devins for recurring ops, isolated per-session workspaces and
 credentials as a feature, [Automations](https://docs.devin.ai/product-guides/automations),
 Playbooks, and the programmatic verification loop). Facilitator-only logistics
-stay in this operator repo; attendee-facing narrative goes to `workshop-metadata`.
+stay in this workshop-operations repo; attendee-facing narrative goes to `workshop-content`.
 
 ## Facilitator Documentation
 
@@ -444,7 +444,7 @@ stay in this operator repo; attendee-facing narrative goes to `workshop-metadata
 | [Runtime Resources](docs/runtime-resources.md) | Provisioning hosted applications for workshop events |
 | [General Themes](docs/general-themes/) | Positioning narratives: when to use Devin, architecture strengths, value framing |
 | [Module Facilitator Notes](docs/module-facilitator-notes/) | Per-module setup, MCP configuration, and presales positioning |
-| [Event README Template](templates/event-readme.md) | Starting template for new event READMEs in workshop-metadata |
+| [Event README Template](templates/event-readme.md) | Starting template for new event READMEs in workshop-content |
 
 ## API Reference Cheatsheet
 

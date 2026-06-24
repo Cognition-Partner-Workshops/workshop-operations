@@ -16,7 +16,7 @@ end-to-end run:
 
 1. a **portable Devin Playbook** (the general, reusable procedure) — `.workshop/playbooks/<name>.devin.md` in the code repo;
 2. a **repo Skill** (the repo-specific mechanics) — `.agents/skills/<name>/SKILL.md` in the code repo, auto-loaded when Devin works there;
-3. a **presenter thread** (the single linear demo guide) — `workshop-metadata/demos/<category>/<name>-demo.md`.
+3. a **presenter thread** (the single linear demo guide) — `workshop-content/demos/<category>/<name>-demo.md`.
 
 A good Devin demo does not show a finished artifact and say "run it." It shows
 **Devin doing the work** off a playbook, **proving** each step against a source
@@ -28,7 +28,7 @@ reasonable" review.
 ## The `.workshop/` paradigm
 
 `.workshop/` is a convention directory that lives **in a code/use-case repo** (or
-in this operator repo) and holds demo-authoring assets that are *not* application
+in this workshop-operations repo) and holds demo-authoring assets that are *not* application
 code and are *not* auto-loaded by Devin:
 
 - `.workshop/playbooks/*.devin.md` — **portable Devin Playbook sources.** Each is
@@ -43,12 +43,12 @@ Contrast with the two sibling conventions a demo uses:
 |---|---|---|---|
 | **Playbook** (`.workshop/playbooks/*.devin.md`) | the code repo | copied into the org by the facilitator; invoked via `!macro` | portable, general procedure |
 | **Skill** (`.agents/skills/<name>/SKILL.md`) | the code repo | auto-loaded by Devin when working in the repo | repo-specific mechanics (commands, paths, namespaces) |
-| **Presenter thread** (`demos/.../*-demo.md`) | `workshop-metadata` | read by the presenter | the single linear demo script |
+| **Presenter thread** (`demos/.../*-demo.md`) | `workshop-content` | read by the presenter | the single linear demo script |
 
 Keep the boundary clean: portable procedure → Playbook; repo mechanics → Skill;
 the linear narrative → presenter thread. Facilitator-only logistics (copy the
-playbook into the org, day-of setup, pacing) belong in the **operator** repo, not
-in the attendee-facing `workshop-metadata` repo.
+playbook into the org, day-of setup, pacing) belong in the **workshop-operations** repo, not
+in the attendee-facing `workshop-content` repo.
 
 ## Required from user
 
@@ -84,14 +84,14 @@ in the attendee-facing `workshop-metadata` repo.
    frontmatter `name` + `description`) holding the repo-specific mechanics the
    Playbook deliberately omits: exact commands, namespaces, where the controls
    live, deploy/revert. Devin auto-loads it when working in the repo.
-5. **Write the presenter thread** in `workshop-metadata/demos/<category>/` as a
+5. **Write the presenter thread** in `workshop-content/demos/<category>/` as a
    single linear thread (see that repo's `demos/AGENTS.md`): lead with prompts,
    minimal preamble, "Key Takeaways" summary. Structure it as: orient over the
    estate → do one unit of work live **with verification** (catch + fix a real
    divergence) → fan out in parallel → confidence = programmatic verification →
    run the produced artifact → **confirm completion in the target tool's
    dashboard** (what to open and what each view proves). Reference the procedure
-   by its `!macro`; keep facilitator setup out (it lives in operator).
+   by its `!macro`; keep facilitator setup out (it lives in workshop-operations).
 6. **Showcase Devin's differentiated value** explicitly across the thread — wire
    in the items in *Specifications* where they fit naturally (do not bolt them
    on).
@@ -141,9 +141,9 @@ A strong Devin demo makes these differentiators concrete, not abstract:
   presenter thread.
 - Keep the three artifacts decoupled. When in doubt: portable → Playbook,
   repo-specific → Skill, narrative → presenter thread.
-- Respect the repos' conventions. `workshop-metadata` allows "demo" verbiage only
+- Respect the repos' conventions. `workshop-content` allows "demo" verbiage only
   under `demos/`, wants single-linear-thread demo docs, "Key Takeaways", and no
-  facilitator-only logistics (those go to operator). Follow `AGENTS.md` /
+  facilitator-only logistics (those go to workshop-operations). Follow `AGENTS.md` /
   `REVIEW.md` in each repo.
 - Make it repeatable and reversible from day one: namespaces or unmerged
   branches, a durable `main`, a one-command revert.
@@ -156,7 +156,7 @@ A strong Devin demo makes these differentiators concrete, not abstract:
   before-state so the demo repeats. Keep the live-produced work on a branch or in
   a disposable namespace.
 - Do **not** put facilitator-only setup or day-of logistics in the
-  `workshop-metadata` (attendee-facing) repo — that content lives in operator.
+  `workshop-content` (attendee-facing) repo — that content lives in workshop-operations.
 - Do **not** ship a demo whose "verification" is not actually programmatic, or
   whose success can only be judged by eye.
 - Do **not** include customer-identifying content or identify the requester in

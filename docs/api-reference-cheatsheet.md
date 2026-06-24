@@ -1,6 +1,6 @@
 # Devin v3 API Reference Cheatsheet
 
-Quick reference for all API endpoints used by the operator scripts. Full docs: https://docs.devin.ai/api-reference/overview
+Quick reference for all API endpoints used by the workshop-operations scripts. Full docs: https://docs.devin.ai/api-reference/overview
 
 ## Base URLs
 

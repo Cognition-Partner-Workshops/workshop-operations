@@ -12,7 +12,7 @@
 #   --dry-run              Preview without creating repos
 #   --include=<glob>       Only mirror repos matching this pattern (e.g. "uc-*")
 #   --exclude=<glob>       Skip repos matching this pattern (repeatable)
-#   --no-default-excludes  Don't auto-exclude workshop-metadata and operator
+#   --no-default-excludes  Don't auto-exclude workshop-content and workshop-operations
 #   --skip-existing        Skip repos that already exist in target (default)
 #   --no-skip-existing     Overwrite existing repos
 #   --visibility=<v>       Target repo visibility: public, private (default: private)
@@ -47,11 +47,11 @@ CONFIG_FILE=""
 SOURCE_HOST="github.com"
 TARGET_HOST="github.com"
 
-# workshop-metadata is excluded by default because its hyperlinks reference
+# workshop-content is excluded by default because its hyperlinks reference
 # the source org URLs and would be broken in a private mirror.  Facilitators
 # should use their local AI coding agent with the agent prompt in
 # templates/agent-prompt-setup-event.md to selectively copy relevant content.
-DEFAULT_EXCLUDES="workshop-metadata|operator"
+DEFAULT_EXCLUDES="workshop-content|workshop-operations"
 
 for arg in "$@"; do
   case "$arg" in

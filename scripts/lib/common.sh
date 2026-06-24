@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# common.sh — Shared functions for Devin v3 API operator scripts
+# common.sh — Shared functions for Devin v3 API workshop-operations scripts
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
