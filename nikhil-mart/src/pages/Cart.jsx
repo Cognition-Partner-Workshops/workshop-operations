@@ -1,4 +1,5 @@
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 import { FiPlus, FiMinus, FiTrash2, FiShoppingBag } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -6,12 +7,25 @@ import "./Cart.css";
 
 export default function Cart() {
   const { cart, increment, decrement, removeFromCart, clearCart, totalPrice } = useCart();
+  const { isAuthenticated, addOrder } = useAuth();
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderId, setOrderId] = useState(null);
 
   const deliveryFee = totalPrice > 199 ? 0 : 25;
   const grandTotal = totalPrice + deliveryFee;
 
   const handleCheckout = () => {
+    const newOrderId = Math.floor(100000 + Math.random() * 900000);
+    if (isAuthenticated) {
+      addOrder({
+        id: newOrderId,
+        items: [...cart],
+        total: grandTotal,
+        date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+        status: "processing",
+      });
+    }
+    setOrderId(newOrderId);
     setOrderPlaced(true);
     clearCart();
   };
@@ -22,7 +36,11 @@ export default function Cart() {
         <div className="order-success">
           <div className="success-icon">🎉</div>
           <h2>Order Placed Successfully!</h2>
+          <p className="order-confirm-id">Order #{orderId}</p>
           <p>Your groceries will be delivered in 10-15 minutes.</p>
+          {isAuthenticated && (
+            <Link to="/profile" className="view-orders-link">View Order History</Link>
+          )}
           <Link to="/" className="continue-btn">Continue Shopping</Link>
         </div>
       </div>
@@ -56,9 +74,13 @@ export default function Cart() {
           <div className="cart-items">
             {cart.map((item) => (
               <div key={item.id} className="cart-item">
-                <img src={item.image} alt={item.name} className="cart-item-image" />
+                <Link to={`/product/${item.id}`}>
+                  <img src={item.image} alt={item.name} className="cart-item-image" />
+                </Link>
                 <div className="cart-item-info">
-                  <h4>{item.name}</h4>
+                  <Link to={`/product/${item.id}`} className="cart-item-name-link">
+                    <h4>{item.name}</h4>
+                  </Link>
                   <p className="cart-item-unit">{item.unit}</p>
                   <p className="cart-item-price">₹{item.price}</p>
                 </div>
@@ -100,6 +122,11 @@ export default function Cart() {
             <span>Total</span>
             <span>₹{grandTotal}</span>
           </div>
+          {!isAuthenticated && (
+            <p className="login-prompt">
+              <Link to="/login">Login</Link> to save your orders and track delivery
+            </p>
+          )}
           <button className="checkout-btn" onClick={handleCheckout}>
             Place Order - ₹{grandTotal}
           </button>

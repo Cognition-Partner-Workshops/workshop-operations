@@ -1,20 +1,36 @@
+import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { FiPlus, FiMinus } from "react-icons/fi";
+import { useAuth } from "../context/AuthContext";
+import { FiPlus, FiMinus, FiHeart } from "react-icons/fi";
 import "./ProductCard.css";
 
 export default function ProductCard({ product }) {
   const { cart, addToCart, increment, decrement } = useCart();
+  const { isAuthenticated, toggleWishlist, isInWishlist } = useAuth();
   const cartItem = cart.find((item) => item.id === product.id);
   const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+  const wishlisted = isAuthenticated && isInWishlist(product.id);
 
   return (
     <div className="product-card">
       {discount > 0 && <span className="discount-badge">{discount}% OFF</span>}
-      <div className="product-image">
-        <img src={product.image} alt={product.name} loading="lazy" />
-      </div>
+      {isAuthenticated && (
+        <button
+          className={`card-wishlist-btn ${wishlisted ? "wishlisted" : ""}`}
+          onClick={(e) => { e.preventDefault(); toggleWishlist(product.id); }}
+        >
+          <FiHeart />
+        </button>
+      )}
+      <Link to={`/product/${product.id}`} className="product-image-link">
+        <div className="product-image">
+          <img src={product.image} alt={product.name} loading="lazy" />
+        </div>
+      </Link>
       <div className="product-info">
-        <h3 className="product-name">{product.name}</h3>
+        <Link to={`/product/${product.id}`} className="product-name-link">
+          <h3 className="product-name">{product.name}</h3>
+        </Link>
         <p className="product-unit">{product.unit}</p>
         <div className="product-pricing">
           <span className="product-price">₹{product.price}</span>

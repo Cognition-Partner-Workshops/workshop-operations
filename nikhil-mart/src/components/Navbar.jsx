@@ -1,11 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
-import { FiShoppingCart, FiSearch, FiMenu } from "react-icons/fi";
+import { FiShoppingCart, FiSearch, FiMenu, FiUser, FiTag } from "react-icons/fi";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 import "./Navbar.css";
 
 export default function Navbar() {
   const { totalItems } = useCart();
+  const { isAuthenticated, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -46,7 +48,15 @@ export default function Navbar() {
         </form>
 
         <div className="navbar-right">
+          <Link to="/offers" className="nav-link"><FiTag className="nav-icon" /> Offers</Link>
           <Link to="/products" className="nav-link">All Products</Link>
+          {isAuthenticated ? (
+            <Link to="/profile" className="user-btn" title={user.name}>
+              <FiUser />
+            </Link>
+          ) : (
+            <Link to="/login" className="nav-link login-link">Login</Link>
+          )}
           <Link to="/cart" className="cart-btn">
             <FiShoppingCart />
             {totalItems > 0 && <span className="cart-badge">{totalItems}</span>}
@@ -58,6 +68,12 @@ export default function Navbar() {
         <div className="mobile-menu">
           <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
           <Link to="/products" onClick={() => setMenuOpen(false)}>All Products</Link>
+          <Link to="/offers" onClick={() => setMenuOpen(false)}>Offers</Link>
+          {isAuthenticated ? (
+            <Link to="/profile" onClick={() => setMenuOpen(false)}>My Account</Link>
+          ) : (
+            <Link to="/login" onClick={() => setMenuOpen(false)}>Login / Signup</Link>
+          )}
           <Link to="/cart" onClick={() => setMenuOpen(false)}>Cart ({totalItems})</Link>
         </div>
       )}
