@@ -176,8 +176,8 @@ st.subheader("Quick Start")
 
 st.markdown(
     """
-    1. **Enter your OpenAI API key** in the sidebar to enable AI features
-    2. **Navigate to any page** using the sidebar menu
+    1. **Navigate to any page** using the sidebar menu - all features work in demo mode!
+    2. *(Optional)* Enter your OpenAI API key in the sidebar for AI-powered responses
     3. **Start planning** your dream trip!
     
     ### Key Technologies

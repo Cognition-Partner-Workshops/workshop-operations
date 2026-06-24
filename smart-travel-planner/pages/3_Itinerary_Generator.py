@@ -9,6 +9,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from utils.demo_mode import get_demo_itinerary
 from utils.models import BudgetLevel, Itinerary, TravelStyle
 from utils.openai_client import chat_completion, get_openai_client
 from utils.pdf_export import generate_itinerary_pdf
@@ -143,52 +144,68 @@ if generate_btn:
         st.error("Please enter a destination.")
         st.stop()
 
-    if not _check_api_key():
-        st.stop()
+    client = get_openai_client()
 
-    interests_text = f"Special Interests: {', '.join(interests)}" if interests else ""
-    if start_date:
-        end_date = start_date + timedelta(days=num_days - 1)
-        dates_text = f"Travel Dates: {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"
+    if client is None:
+        with st.spinner(f"Generating your {num_days}-day {destination} itinerary (demo mode)..."):
+            itinerary_data = get_demo_itinerary(
+                destination=destination,
+                num_days=num_days,
+                budget_level=budget_level,
+                travel_style=travel_style,
+                num_travelers=num_travelers,
+                interests=interests,
+            )
+            try:
+                itinerary = Itinerary(**itinerary_data)
+                st.session_state["current_itinerary"] = itinerary
+            except Exception as e:
+                st.error(f"Error creating itinerary: {e}")
+                st.stop()
     else:
-        dates_text = ""
+        interests_text = f"Special Interests: {', '.join(interests)}" if interests else ""
+        if start_date:
+            end_date = start_date + timedelta(days=num_days - 1)
+            dates_text = f"Travel Dates: {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"
+        else:
+            dates_text = ""
 
-    prompt = ITINERARY_PROMPT.format(
-        destination=destination,
-        num_days=num_days,
-        budget_level=budget_level,
-        travel_style=travel_style,
-        num_travelers=num_travelers,
-        interests_text=interests_text,
-        dates_text=dates_text,
-    )
-
-    with st.spinner(f"Generating your {num_days}-day {destination} itinerary..."):
-        response = chat_completion(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert travel planner. Generate detailed, practical itineraries. Return ONLY valid JSON, no markdown fences.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.7,
-            response_format={"type": "json_object"},
+        prompt = ITINERARY_PROMPT.format(
+            destination=destination,
+            num_days=num_days,
+            budget_level=budget_level,
+            travel_style=travel_style,
+            num_travelers=num_travelers,
+            interests_text=interests_text,
+            dates_text=dates_text,
         )
 
-        if response is None:
-            st.error("Failed to generate itinerary. Please check your API key.")
-            st.stop()
+        with st.spinner(f"Generating your {num_days}-day {destination} itinerary..."):
+            response = chat_completion(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert travel planner. Generate detailed, practical itineraries. Return ONLY valid JSON, no markdown fences.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"},
+            )
 
-        raw_content = response.choices[0].message.content
-        try:
-            itinerary_data = json.loads(raw_content)
-            itinerary = Itinerary(**itinerary_data)
-            st.session_state["current_itinerary"] = itinerary
-        except (json.JSONDecodeError, Exception) as e:
-            st.error(f"Error parsing itinerary: {e}")
-            st.code(raw_content)
-            st.stop()
+            if response is None:
+                st.error("Failed to generate itinerary. Please check your API key.")
+                st.stop()
+
+            raw_content = response.choices[0].message.content
+            try:
+                itinerary_data = json.loads(raw_content)
+                itinerary = Itinerary(**itinerary_data)
+                st.session_state["current_itinerary"] = itinerary
+            except (json.JSONDecodeError, Exception) as e:
+                st.error(f"Error parsing itinerary: {e}")
+                st.code(raw_content)
+                st.stop()
 
 if "current_itinerary" in st.session_state:
     itinerary = st.session_state["current_itinerary"]

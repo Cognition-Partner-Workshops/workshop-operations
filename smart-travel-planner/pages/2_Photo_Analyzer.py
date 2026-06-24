@@ -8,6 +8,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from utils.demo_mode import DEMO_PHOTO_ANALYSIS
 from utils.openai_client import get_openai_client, vision_completion
 
 st.set_page_config(page_title="Photo Analyzer", page_icon="📸", layout="wide")
@@ -86,26 +87,30 @@ with col2:
     st.subheader("Analysis Results")
 
     if uploaded_file and analyze_btn:
-        if not _check_api_key():
-            st.stop()
-
-        with st.spinner("Analyzing your photo..."):
-            image_bytes = uploaded_file.getvalue()
-            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-
-            prompt = ANALYSIS_PROMPT
-            if custom_question:
-                prompt += f"\n\nAlso answer this specific question: {custom_question}"
-
-            result = vision_completion(image_base64=image_base64, prompt=prompt)
-
-            if result:
+        client = get_openai_client()
+        if client is None:
+            with st.spinner("Analyzing your photo (demo mode)..."):
+                result = DEMO_PHOTO_ANALYSIS
                 st.session_state["last_photo_analysis"] = result
                 st.markdown(result)
-            else:
-                st.error(
-                    "Failed to analyze the photo. Please check your API key and try again."
-                )
+        else:
+            with st.spinner("Analyzing your photo..."):
+                image_bytes = uploaded_file.getvalue()
+                image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+                prompt = ANALYSIS_PROMPT
+                if custom_question:
+                    prompt += f"\n\nAlso answer this specific question: {custom_question}"
+
+                result = vision_completion(image_base64=image_base64, prompt=prompt)
+
+                if result:
+                    st.session_state["last_photo_analysis"] = result
+                    st.markdown(result)
+                else:
+                    st.error(
+                        "Failed to analyze the photo. Please check your API key and try again."
+                    )
 
     elif "last_photo_analysis" in st.session_state:
         st.markdown(st.session_state["last_photo_analysis"])

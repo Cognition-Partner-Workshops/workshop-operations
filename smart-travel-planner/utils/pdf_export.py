@@ -10,6 +10,11 @@ from fpdf import FPDF
 from utils.models import Itinerary
 
 
+def _sanitize(text: str) -> str:
+    """Remove characters unsupported by the Helvetica font."""
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
 class TravelPDF(FPDF):
     """Custom PDF class for travel itineraries."""
 
@@ -36,26 +41,26 @@ class TravelPDF(FPDF):
     def _add_section_title(self, title: str):
         self.set_font("Helvetica", "B", 14)
         self.set_text_color(44, 62, 80)
-        self.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 10, _sanitize(title), new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
 
     def _add_subsection(self, title: str):
         self.set_font("Helvetica", "B", 11)
         self.set_text_color(52, 73, 94)
-        self.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 8, _sanitize(title), new_x="LMARGIN", new_y="NEXT")
 
     def _add_body_text(self, text: str):
         self.set_font("Helvetica", "", 10)
         self.set_text_color(60, 60, 60)
-        self.multi_cell(0, 6, text)
+        self.multi_cell(0, 6, _sanitize(text))
         self.ln(2)
 
     def _add_bullet(self, text: str):
         self.set_font("Helvetica", "", 10)
         self.set_text_color(60, 60, 60)
         x = self.get_x()
-        self.cell(8, 6, chr(8226))
-        self.multi_cell(0, 6, text)
+        self.cell(8, 6, "-")
+        self.multi_cell(0, 6, _sanitize(text))
 
 
 def generate_itinerary_pdf(itinerary: Itinerary) -> bytes:
@@ -66,7 +71,7 @@ def generate_itinerary_pdf(itinerary: Itinerary) -> bytes:
 
     pdf.set_font("Helvetica", "B", 22)
     pdf.set_text_color(41, 128, 185)
-    pdf.cell(0, 15, itinerary.destination, align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 15, _sanitize(itinerary.destination), align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 12)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(
@@ -106,13 +111,13 @@ def generate_itinerary_pdf(itinerary: Itinerary) -> bytes:
             for activity in day.activities:
                 pdf.set_font("Helvetica", "B", 10)
                 pdf.set_text_color(41, 128, 185)
-                pdf.cell(25, 6, activity.time)
+                pdf.cell(25, 6, _sanitize(activity.time))
                 pdf.set_text_color(44, 62, 80)
-                pdf.cell(0, 6, activity.name, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 6, _sanitize(activity.name), new_x="LMARGIN", new_y="NEXT")
                 pdf.set_font("Helvetica", "", 9)
                 pdf.set_text_color(100, 100, 100)
                 pdf.set_x(35)
-                pdf.multi_cell(0, 5, activity.description)
+                pdf.multi_cell(0, 5, _sanitize(activity.description))
                 pdf.set_x(35)
                 details = []
                 if activity.location:
@@ -123,7 +128,7 @@ def generate_itinerary_pdf(itinerary: Itinerary) -> bytes:
                     details.append(f"Duration: {activity.duration}")
                 if details:
                     pdf.set_font("Helvetica", "I", 8)
-                    pdf.cell(0, 5, " | ".join(details), new_x="LMARGIN", new_y="NEXT")
+                    pdf.cell(0, 5, _sanitize(" | ".join(details)), new_x="LMARGIN", new_y="NEXT")
                 pdf.ln(3)
 
         if day.meals:
@@ -132,13 +137,13 @@ def generate_itinerary_pdf(itinerary: Itinerary) -> bytes:
             for meal in day.meals:
                 pdf.set_font("Helvetica", "B", 10)
                 pdf.set_text_color(231, 76, 60)
-                pdf.cell(25, 6, meal.time)
+                pdf.cell(25, 6, _sanitize(meal.time))
                 pdf.set_text_color(44, 62, 80)
-                pdf.cell(0, 6, meal.name, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 6, _sanitize(meal.name), new_x="LMARGIN", new_y="NEXT")
                 pdf.set_font("Helvetica", "", 9)
                 pdf.set_text_color(100, 100, 100)
                 pdf.set_x(35)
-                pdf.multi_cell(0, 5, meal.description)
+                pdf.multi_cell(0, 5, _sanitize(meal.description))
                 pdf.ln(2)
 
         if day.tips:

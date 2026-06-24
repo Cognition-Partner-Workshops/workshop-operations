@@ -7,6 +7,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from utils.demo_mode import get_demo_rag_summary
 from utils.openai_client import chat_completion, get_openai_client
 from utils.rag import index_documents, search_guides
 
@@ -89,39 +90,45 @@ if search_query:
             "No results found. Try a different query or check that travel guides are indexed."
         )
     else:
-        if use_ai_summary and get_openai_client():
-            context = "\n\n---\n\n".join(
-                [
-                    f"[Source: {r['source'].replace('_', ' ').title()}]\n{r['text']}"
-                    for r in results
-                ]
-            )
-
-            with st.spinner("Generating AI-enhanced answer..."):
-                response = chat_completion(
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a knowledgeable travel expert. Answer the user's question "
-                                "based on the provided travel guide excerpts. Be specific, practical, "
-                                "and engaging. Reference specific places, costs, and tips from the "
-                                "sources. If the sources don't fully answer the question, say so "
-                                "and provide what you can."
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Question: {search_query}\n\nTravel Guide Excerpts:\n{context}",
-                        },
-                    ],
-                    temperature=0.5,
+        if use_ai_summary:
+            client = get_openai_client()
+            if client:
+                context = "\n\n---\n\n".join(
+                    [
+                        f"[Source: {r['source'].replace('_', ' ').title()}]\n{r['text']}"
+                        for r in results
+                    ]
                 )
 
-                if response:
-                    st.subheader("AI-Enhanced Answer")
-                    st.markdown(response.choices[0].message.content)
-                    st.divider()
+                with st.spinner("Generating AI-enhanced answer..."):
+                    response = chat_completion(
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a knowledgeable travel expert. Answer the user's question "
+                                    "based on the provided travel guide excerpts. Be specific, practical, "
+                                    "and engaging. Reference specific places, costs, and tips from the "
+                                    "sources. If the sources don't fully answer the question, say so "
+                                    "and provide what you can."
+                                ),
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Question: {search_query}\n\nTravel Guide Excerpts:\n{context}",
+                            },
+                        ],
+                        temperature=0.5,
+                    )
+
+                    if response:
+                        st.subheader("AI-Enhanced Answer")
+                        st.markdown(response.choices[0].message.content)
+                        st.divider()
+            else:
+                st.subheader("AI-Enhanced Answer (Demo)")
+                st.markdown(get_demo_rag_summary(search_query, results))
+                st.divider()
 
         st.subheader(f"Source Documents ({len(results)} results)")
 

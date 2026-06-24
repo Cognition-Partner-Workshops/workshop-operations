@@ -8,12 +8,13 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from utils.demo_mode import get_demo_chat_response
 from utils.function_calling import FUNCTION_TOOLS, process_tool_calls
 from utils.openai_client import SYSTEM_PROMPT, chat_completion, get_openai_client
 
-st.set_page_config(page_title="Chat Trip Planner", page_icon="💬", layout="wide")
+st.set_page_config(page_title="Chat Trip Planner", page_icon="\U0001f4ac", layout="wide")
 
-st.title("💬 Chat Trip Planner")
+st.title("\U0001f4ac Chat Trip Planner")
 st.markdown(
     "Plan your perfect trip through conversation. Ask about destinations, "
     "get weather forecasts, compare prices, and receive personalized recommendations."
@@ -38,103 +39,100 @@ if "chat_messages" not in st.session_state:
     ]
 
 
-def _check_api_key() -> bool:
-    client = get_openai_client()
-    if client is None:
-        st.warning(
-            "Please enter your OpenAI API key in the sidebar on the Home page to use the chat feature."
-        )
-        return False
-    return True
-
-
 for msg in st.session_state.chat_messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 if prompt := st.chat_input("Ask me about your trip..."):
-    if not _check_api_key():
-        st.stop()
-
     st.session_state.chat_messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    client = get_openai_client()
+
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            messages = [{"role": "system", "content": SYSTEM_PROMPT}] + [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.chat_messages
-            ]
-
-            response = chat_completion(
-                messages=messages,
-                tools=FUNCTION_TOOLS,
-                temperature=0.7,
-            )
-
-            if response is None:
-                st.error("Failed to get a response. Please check your API key.")
-                st.stop()
-
-            message = response.choices[0].message
-
-            if message.tool_calls:
-                st.info("Fetching live data...")
-
-                tool_results = process_tool_calls(response)
-
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": message.content or "",
-                        "tool_calls": [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
-                                },
-                            }
-                            for tc in message.tool_calls
-                        ],
-                    }
+        if client is None:
+            with st.spinner("Thinking (demo mode)..."):
+                assistant_content = get_demo_chat_response(prompt)
+                st.markdown(assistant_content)
+                st.session_state.chat_messages.append(
+                    {"role": "assistant", "content": assistant_content}
                 )
-                messages.extend(tool_results)
+        else:
+            with st.spinner("Thinking..."):
+                messages = [{"role": "system", "content": SYSTEM_PROMPT}] + [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.chat_messages
+                ]
 
-                for result in tool_results:
-                    data = json.loads(result["content"])
-                    fn_name = result["name"]
-                    if fn_name == "get_weather":
-                        with st.expander("Weather Data", expanded=False):
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric(
-                                "Temperature",
-                                f"{data['temperature_celsius']}°C",
-                                f"{data['temperature_fahrenheit']}°F",
-                            )
-                            col2.metric("Condition", data["condition"])
-                            col3.metric("Humidity", f"{data['humidity']}%")
-                    elif fn_name == "get_pricing":
-                        with st.expander("Pricing Data", expanded=False):
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric("Flight", data["flight_estimate"])
-                            col2.metric("Hotel/Night", data["hotel_per_night"])
-                            col3.metric("Meals", data["meal_average"])
+                response = chat_completion(
+                    messages=messages,
+                    tools=FUNCTION_TOOLS,
+                    temperature=0.7,
+                )
 
-                follow_up = chat_completion(messages=messages, temperature=0.7)
-                if follow_up:
-                    assistant_content = follow_up.choices[0].message.content
+                if response is None:
+                    st.error("Failed to get a response. Please check your API key.")
+                    st.stop()
+
+                message = response.choices[0].message
+
+                if message.tool_calls:
+                    st.info("Fetching live data...")
+
+                    tool_results = process_tool_calls(response)
+
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": message.content or "",
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments,
+                                    },
+                                }
+                                for tc in message.tool_calls
+                            ],
+                        }
+                    )
+                    messages.extend(tool_results)
+
+                    for result in tool_results:
+                        data = json.loads(result["content"])
+                        fn_name = result["name"]
+                        if fn_name == "get_weather":
+                            with st.expander("Weather Data", expanded=False):
+                                col1, col2, col3 = st.columns(3)
+                                col1.metric(
+                                    "Temperature",
+                                    f"{data['temperature_celsius']}\u00b0C",
+                                    f"{data['temperature_fahrenheit']}\u00b0F",
+                                )
+                                col2.metric("Condition", data["condition"])
+                                col3.metric("Humidity", f"{data['humidity']}%")
+                        elif fn_name == "get_pricing":
+                            with st.expander("Pricing Data", expanded=False):
+                                col1, col2, col3 = st.columns(3)
+                                col1.metric("Flight", data["flight_estimate"])
+                                col2.metric("Hotel/Night", data["hotel_per_night"])
+                                col3.metric("Meals", data["meal_average"])
+
+                    follow_up = chat_completion(messages=messages, temperature=0.7)
+                    if follow_up:
+                        assistant_content = follow_up.choices[0].message.content
+                    else:
+                        assistant_content = "I fetched the data but couldn't generate a response."
                 else:
-                    assistant_content = "I fetched the data but couldn't generate a response."
-            else:
-                assistant_content = message.content
+                    assistant_content = message.content
 
-            st.markdown(assistant_content)
-            st.session_state.chat_messages.append(
-                {"role": "assistant", "content": assistant_content}
-            )
+                st.markdown(assistant_content)
+                st.session_state.chat_messages.append(
+                    {"role": "assistant", "content": assistant_content}
+                )
 
 with st.sidebar:
     st.subheader("Chat Controls")
