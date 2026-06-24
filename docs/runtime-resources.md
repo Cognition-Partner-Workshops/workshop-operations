@@ -32,7 +32,7 @@ To provision hosted instances for a workshop event:
 
 ## Local Run Instructions
 
-When hosted instances are unavailable, participants can ask Devin to run applications locally on its machine. These instructions are also documented in the attendee-facing [workshop-metadata repo](https://github.com/Cognition-Partner-Workshops/workshop-metadata) under `shared/runtime-resources.md`.
+When hosted instances are unavailable, participants can ask Devin to run applications locally on its machine. These instructions are also documented in the attendee-facing [workshop-content repo](https://github.com/Cognition-Partner-Workshops/workshop-content) under `reference/runtime-resources.md`.
 
 ### timesheet-app
 ```bash

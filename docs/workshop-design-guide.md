@@ -6,28 +6,28 @@ How to design, build, and run workshops using the Cognition-Partner-Workshops in
 
 | Concept | Definition | Location |
 |---------|-----------|----------|
-| **Module** | Atomic challenge task — a single hands-on exercise with prompts, target outcomes, and repo references | `workshop-metadata/modules/` |
-| **Workshop** | Reusable template composing modules into a structured lab sequence with timing and track guidance | `workshop-metadata/workshops/` |
-| **Event** | Point-in-time instance of a workshop for a specific date, location, and audience | `workshop-metadata/events/` |
+| **Module** | Atomic challenge task — a single hands-on exercise with prompts, target outcomes, and repo references | `workshop-content/labs/` |
+| **Workshop** | Reusable template composing modules into a structured lab sequence with timing and track guidance | `workshop-content/workshops/` |
+| **Event** | Point-in-time instance of a workshop for a specific date, location, and audience | `workshop-content/events/` |
 
 Modules are the reusable atoms. Workshops compose modules. Events instantiate workshops.
 
 ## Creating a New Module
 
-1. Create a markdown file in the appropriate `workshop-metadata/modules/<category>/` directory
+1. Create a markdown file in the appropriate `workshop-content/labs/<category>/` directory
 2. Follow the 4-step format:
    - **Step 1: Paste into Devin** — copy-pasteable prompt
    - **Step 2: Research with Ask Devin** — exploratory prompts
    - **Step 3: Read the DeepWiki** — optional architecture exploration
    - **Step 4: Review & Give Feedback** — PR review workflow
-3. Add cross-references in `workshop-metadata/catalog/repos.md` for any repos the challenge uses
+3. Add cross-references in `workshop-content/catalog/repos.md` for any repos the challenge uses
 4. Update the category `README.md` with the new challenge entry
-5. Update `workshop-metadata/modules/README.md` navigation index
-6. If the module needs facilitator-specific notes (MCP setup, presales positioning, timing guides), create a sibling file in `operator/docs/module-facilitator-notes/<category>/`
+5. Update `workshop-content/labs/README.md` navigation index
+6. If the module needs facilitator-specific notes (MCP setup, presales positioning, timing guides), create a sibling file in `workshop-operations/docs/module-facilitator-notes/<category>/`
 
 ## Creating a New Workshop
 
-1. Create a new directory under `workshop-metadata/workshops/` with a descriptive slug (e.g., `workshops/cloud-native-transformation/`)
+1. Create a new directory under `workshop-content/workshops/` with a descriptive slug (e.g., `workshops/cloud-native-transformation/`)
 2. Add a `README.md` following the structure of any existing workshop
 3. Define labs using the 4-step format
 4. List required modules and repos
@@ -37,7 +37,7 @@ Modules are the reusable atoms. Workshops compose modules. Events instantiate wo
 
 ## Creating an Event from a Workshop
 
-1. Copy `operator/templates/event-readme.md` into `workshop-metadata/events/active/YYYY-MM-DD-<event-id>/README.md`
+1. Copy `workshop-operations/templates/event-readme.md` into `workshop-content/events/active/YYYY-MM-DD-<event-id>/README.md`
 2. Reference the workshop(s) this event is based on (from `workshops/`)
 3. Edit to fill in event details and any overrides
 4. Specify which repos need to be set up on Devin's machine
@@ -127,4 +127,4 @@ After an event ends, move its directory from `active/` to `archive/`.
 | Event config template | [templates/event-readme.md](../templates/event-readme.md) |
 | Workshop provisioning scripts | [scripts/](../scripts/) |
 | API reference | [docs/api-reference-cheatsheet.md](api-reference-cheatsheet.md) |
-| Attendee-facing lab content | [workshop-metadata repo](https://github.com/Cognition-Partner-Workshops/workshop-metadata) |
+| Attendee-facing lab content | [workshop-content repo](https://github.com/Cognition-Partner-Workshops/workshop-content) |

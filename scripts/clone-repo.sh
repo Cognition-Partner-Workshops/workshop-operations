@@ -96,7 +96,7 @@ if [[ ${#REPO_NAMES[@]} -eq 0 ]]; then
 fi
 
 # Repos that should not be mirrored directly
-BLOCKED_REPOS="workshop-metadata workshop-instructions"
+BLOCKED_REPOS="workshop-content"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 

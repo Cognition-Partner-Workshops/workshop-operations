@@ -15,7 +15,7 @@
 #
 # Prerequisites:
 #   - gh CLI authenticated with repo + workflow scopes
-#   - The workflow file at .github/workflows/pr-pii-check.yml in the operator repo
+#   - The workflow file at .github/workflows/pr-pii-check.yml in the workshop-operations repo
 set -euo pipefail
 
 ORG="${1:?Usage: $0 <GITHUB_ORG> [OPTIONS]}"

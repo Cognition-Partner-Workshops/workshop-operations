@@ -15,7 +15,7 @@ This skill mirrors the public repos required by a workshop into a private
 GitHub org so attendees can use them in a Devin Enterprise environment.
 
 The user will reference a workshop by name or by URL from the
-`workshop-instructions` repo (e.g.
+`workshop-content` repo (e.g.
 `workshops/application-development-maintenance/README.md`). You will read
 that README, extract the repos listed under **Repos Required**, and run
 `scripts/clone-repo.sh` to create private copies in the target org.
@@ -24,9 +24,9 @@ that README, extract the repos listed under **Repos Required**, and run
 
 Ask the user which workshop they want to set up if not already specified.
 
-Workshops live in the `workshop-instructions` repo at:
+Workshops live in the `workshop-content` repo at:
 ```
-https://github.com/Cognition-Partner-Workshops/workshop-instructions/blob/main/workshops/<workshop-name>/README.md
+https://github.com/Cognition-Partner-Workshops/workshop-content/blob/main/workshops/<workshop-name>/README.md
 ```
 
 If the user provides a URL, extract the workshop path from it.
@@ -36,7 +36,7 @@ If they provide a name, look it up under `workshops/`.
 
 Fetch the raw workshop README from GitHub:
 ```
-https://raw.githubusercontent.com/Cognition-Partner-Workshops/workshop-instructions/main/workshops/<workshop-name>/README.md
+https://raw.githubusercontent.com/Cognition-Partner-Workshops/workshop-content/main/workshops/<workshop-name>/README.md
 ```
 
 Find the **## Repos Required** section. Repos are listed as checkboxes:
@@ -85,7 +85,7 @@ export GITHUB_MIRROR_PAT="<token>"
 
 ## Step 4: Run clone-repo.sh
 
-From the operator repo root, run the script with all the confirmed repo
+From the workshop-operations repo root, run the script with all the confirmed repo
 names. The default target org is `Cognition-Partner-Workshops-mirror`.
 
 ```bash
@@ -100,7 +100,7 @@ The script:
 - Copies only the default branch by default (use `--all-branches` if needed)
 - Strips `.github/workflows/` from mirrors by default
 - Skips repos that already exist in the target org
-- Blocks `workshop-metadata` and `workshop-instructions` automatically
+- Blocks `workshop-content` automatically
 - Prints an OK/Skipped/Blocked/Failed summary
 
 ## Step 5: Report results

@@ -1,13 +1,13 @@
 # Agent Prompt: Set Up a Workshop Event
 
 Use this prompt with a **local AI coding agent** (Devin, Cursor, Copilot, etc.)
-to provision a new workshop event end-to-end.  The agent will drive the operator
+to provision a new workshop event end-to-end.  The agent will drive the workshop-operations
 scripts to mirror repos, create the Devin org, set permissions, and prepare
 environment configs.
 
-> **Why not clone workshop-metadata?**  The `workshop-metadata` repo contains
+> **Why not clone workshop-content?**  The `workshop-content` repo contains
 > hyperlinks that reference `Cognition-Partner-Workshops` URLs.  In a private
-> mirror those links would be broken.  Instead, the agent reads workshop-metadata
+> mirror those links would be broken.  Instead, the agent reads workshop-content
 > locally and copies only the relevant module/workshop content into the event
 > config — rewriting links as needed.
 
@@ -24,8 +24,8 @@ Before pasting the prompt below, make sure:
    (`ManageOrganizations`, `ManageGitIntegrations`, `ManageOrgSessions`,
    `ImpersonateOrgSessions`, `ManageAccountMembership`).
 3. You have a local clone of both:
-   - `Cognition-Partner-Workshops/operator`
-   - `Cognition-Partner-Workshops/workshop-metadata`
+   - `Cognition-Partner-Workshops/workshop-operations`
+   - `Cognition-Partner-Workshops/workshop-content`
 
 ---
 
@@ -33,14 +33,14 @@ Before pasting the prompt below, make sure:
 
 ````text
 I need to set up a new Devin Enterprise workshop event.  Walk me through the
-process using the scripts in the `operator` repo.
+process using the scripts in the `workshop-operations` repo.
 
 ### What I need you to do
 
 1. **Ask me which workshops or modules I want.**
-   - List the available workshops from `workshop-metadata/workshops/` (read
+   - List the available workshops from `workshop-content/workshops/` (read
      each README.md to show the workshop name, focus, and duration).
-   - List the available modules from `workshop-metadata/modules/` grouped by
+   - List the available modules from `workshop-content/labs/` grouped by
      category.
    - Let me pick by name, track, or category.
 
@@ -57,9 +57,9 @@ process using the scripts in the `operator` repo.
        --target-org=<TARGET_ORG>
      ```
    - The script processes them in sequence and prints a summary.
-   - Do NOT mirror `workshop-metadata` — its hyperlinks would be broken
+   - Do NOT mirror `workshop-content` — its hyperlinks would be broken
      (the script blocks it automatically).
-   - Do NOT mirror `operator` into the attendee org — it goes into the
+   - Do NOT mirror `workshop-operations` into the attendee org — it goes into the
      internal operations org only (see step 6).
 
 4. **Create a workshop config file.**
@@ -79,15 +79,15 @@ process using the scripts in the `operator` repo.
      sessions (one per repo).
    - Show me the output (org ID, session URLs).
 
-6. **Copy the operator repo into the internal operations org.**
-   - The operator repo itself should be mirrored into the facilitator's
+6. **Copy the workshop-operations repo into the internal operations org.**
+   - The workshop-operations repo itself should be mirrored into the facilitator's
      internal Devin org (the same enterprise, but NOT the attendee org):
      ```
-     ./scripts/clone-repo.sh operator \
+     ./scripts/clone-repo.sh workshop-operations \
        --target-org=<INTERNAL_OPS_ORG>
      ```
    - Then add git permissions for it in the internal ops Devin org so
-     facilitators can run operator scripts from Devin sessions.
+     facilitators can run workshop-operations scripts from Devin sessions.
 
 7. **Summarize next steps.**
    - Print a checklist of what was provisioned.
@@ -99,9 +99,9 @@ process using the scripts in the `operator` repo.
 
 ### Important rules
 
-- **Never clone `workshop-metadata` directly** — read it locally, extract
+- **Never clone `workshop-content` directly** — read it locally, extract
   the repos each lab needs, and only mirror the app/code repos.
-- **The `operator` repo goes to the internal ops org**, not the attendee org.
+- **The `workshop-operations` repo goes to the internal ops org**, not the attendee org.
 - All mirrored repos default to **private** visibility.
 - CI workflows are **stripped** from mirrors by default (use
   `--no-strip-workflows` to keep them).
@@ -115,15 +115,15 @@ process using the scripts in the `operator` repo.
 
 When you paste this prompt, the agent will interactively:
 
-1. Show you available workshops and modules from `workshop-metadata/`
+1. Show you available workshops and modules from `workshop-content/`
 2. Let you pick which ones to include in the event
 3. Resolve the full repo list from workshop/module content
 4. Run `clone-repo.sh` for each repo to create private mirrors
 5. Generate a workshop config JSON
 6. Run `provision-workshop.sh` to create the Devin org with permissions,
    participant invites, and environment config sessions
-7. Mirror the operator repo into the internal ops org
+7. Mirror the workshop-operations repo into the internal ops org
 8. Print a post-provisioning checklist
 
-The entire flow is driven by the agent reading `workshop-metadata/` locally
-— no cloning of workshop-metadata into the mirror org is needed.
+The entire flow is driven by the agent reading `workshop-content/` locally
+— no cloning of workshop-content into the mirror org is needed.
