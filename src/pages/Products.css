@@ -1,0 +1,156 @@
+.products-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+}
+
+.filters-sidebar {
+  position: sticky;
+  top: 90px;
+  align-self: start;
+}
+
+.filters-sidebar h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 16px 0;
+}
+
+.category-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.filter-btn:hover {
+  border-color: #7c3aed;
+  color: #7c3aed;
+}
+
+.filter-btn.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.products-main {
+  min-width: 0;
+}
+
+.products-toolbar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.products-search {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.products-search .search-icon {
+  position: absolute;
+  left: 14px;
+  color: #999;
+}
+
+.products-search input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #f8f8f8;
+  transition: all 0.2s;
+}
+
+.products-search input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  background: #fff;
+}
+
+.sort-select {
+  padding: 10px 16px;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+  color: #333;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: #7c3aed;
+}
+
+.results-count {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 16px 0;
+}
+
+.products-listing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .products-page {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .filters-sidebar {
+    position: static;
+  }
+
+  .category-filters {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .products-toolbar {
+    flex-direction: column;
+  }
+
+  .products-listing-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
