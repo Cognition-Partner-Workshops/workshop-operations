@@ -1,7 +1,8 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, AnimatePresence } from "framer-motion";
 import { useRef, useState } from "react";
+import Image from "next/image";
 import {
   FaTableTennis,
   FaSwimmer,
@@ -21,6 +22,7 @@ const sports = [
     bgGlow: "bg-amber-500/10",
     borderColor: "border-amber-500/20",
     textColor: "text-amber-400",
+    image: "/images/sport-badminton.jpg",
     tagline: "Train Like a National Champion",
     description:
       "Learn from the best. Our badminton program is led by National Champion Rahul Joshi himself, offering unparalleled coaching from beginner to competitive level. Experience world-class footwork drills, strategic gameplay, and tournament preparation.",
@@ -43,6 +45,7 @@ const sports = [
     bgGlow: "bg-cyan-500/10",
     borderColor: "border-cyan-500/20",
     textColor: "text-cyan-400",
+    image: "/images/sport-swimming.jpg",
     tagline: "Dive Into Excellence",
     description:
       "Our state-of-the-art swimming program offers professional coaching for all levels. From learn-to-swim for young children to competitive stroke refinement, our certified coaches ensure safety, technique, and confidence in the water.",
@@ -65,6 +68,7 @@ const sports = [
     bgGlow: "bg-red-500/10",
     borderColor: "border-red-500/20",
     textColor: "text-red-400",
+    image: "/images/sport-basketball.jpg",
     tagline: "Rise Above the Rest",
     description:
       "Elevate your game on our professional courts. Our basketball program focuses on fundamental skills, tactical intelligence, and physical conditioning. From dribblers to dunkers, we build complete players ready for any competition.",
@@ -87,6 +91,7 @@ const sports = [
     bgGlow: "bg-violet-500/10",
     borderColor: "border-violet-500/20",
     textColor: "text-violet-400",
+    image: "/images/sport-martial.jpg",
     tagline: "Master Your Mind & Body",
     description:
       "Discover the ancient art of self-discipline and self-defense. Our martial arts program blends traditional techniques with modern training methods, building confidence, respect, and physical mastery in every practitioner.",
@@ -145,16 +150,28 @@ export default function Sports() {
             <motion.button
               key={sport.id}
               onClick={() => setActiveSport(sport.id)}
-              className={`relative flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl transition-all duration-400 ${
+              className={`relative flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl transition-all duration-400 overflow-hidden ${
                 activeSport === sport.id
-                  ? `glass-card ${sport.borderColor} border-2 shadow-lg`
+                  ? `${sport.borderColor} border-2 shadow-lg`
                   : "glass-card hover:bg-white/5"
               }`}
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.97 }}
             >
+              {activeSport === sport.id && (
+                <div className="absolute inset-0">
+                  <Image
+                    src={sport.image}
+                    alt={sport.name}
+                    fill
+                    className="object-cover opacity-30"
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+                </div>
+              )}
               <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                className={`relative z-10 w-12 h-12 rounded-xl flex items-center justify-center ${
                   activeSport === sport.id
                     ? `bg-gradient-to-br ${sport.color}`
                     : "bg-white/5"
@@ -167,7 +184,7 @@ export default function Sports() {
                 />
               </div>
               <span
-                className={`text-sm font-semibold ${
+                className={`relative z-10 text-sm font-semibold ${
                   activeSport === sport.id ? "text-white" : "text-gray-400"
                 }`}
               >
@@ -176,94 +193,108 @@ export default function Sports() {
               {activeSport === sport.id && (
                 <motion.div
                   layoutId="sportIndicator"
-                  className={`absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r ${sport.color} rounded-full`}
+                  className={`absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r ${sport.color} rounded-full z-10`}
                 />
               )}
             </motion.button>
           ))}
         </motion.div>
 
-        <motion.div
-          key={active.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="glass-card rounded-3xl overflow-hidden"
-        >
-          <div className="grid lg:grid-cols-2 gap-0">
-            <div
-              className={`relative p-8 lg:p-12 ${active.bgGlow} flex flex-col justify-center`}
-            >
-              <div
-                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r ${active.color} bg-opacity-10 text-white text-xs font-medium mb-4 w-fit`}
-              >
-                <active.icon className="text-sm" />
-                {active.name}
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                {active.tagline}
-              </h3>
-              <p className="text-gray-400 leading-relaxed mb-8">
-                {active.description}
-              </p>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={active.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5 }}
+            className="glass-card rounded-3xl overflow-hidden"
+          >
+            <div className="grid lg:grid-cols-2 gap-0">
+              <div className="relative min-h-[300px] lg:min-h-[500px]">
+                <Image
+                  src={active.image}
+                  alt={`${active.name} at AllSportsProfessionals`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/30 hidden lg:block" />
 
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <FaClock className={active.textColor} />
-                  {active.schedule.split("|")[0]}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <FaUserTie className={active.textColor} />
-                  {active.coach.length > 25
-                    ? active.coach.substring(0, 25) + "..."
-                    : active.coach}
-                </div>
-              </div>
-
-              <motion.a
-                href="#contact"
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r ${active.color} text-white font-semibold shadow-lg transition-all duration-300 w-fit`}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Enroll Now
-              </motion.a>
-            </div>
-
-            <div className="p-8 lg:p-12 border-t lg:border-t-0 lg:border-l border-white/5">
-              <h4 className="text-lg font-semibold text-white mb-6">
-                What You&apos;ll Learn
-              </h4>
-              <ul className="space-y-4">
-                {active.features.map((feature) => (
-                  <motion.li
-                    key={feature}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-start gap-3"
+                <div className="absolute bottom-0 left-0 right-0 p-8 lg:p-12">
+                  <div
+                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r ${active.color} text-white text-xs font-medium mb-4 w-fit`}
                   >
-                    <div
-                      className={`w-5 h-5 rounded-md bg-gradient-to-br ${active.color} flex items-center justify-center flex-shrink-0 mt-0.5`}
-                    >
-                      <FaCheck className="text-white text-[10px]" />
-                    </div>
-                    <span className="text-gray-300 text-sm">{feature}</span>
-                  </motion.li>
-                ))}
-              </ul>
+                    <active.icon className="text-sm" />
+                    {active.name}
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                    {active.tagline}
+                  </h3>
+                  <p className="text-gray-300 leading-relaxed mb-6 max-w-md">
+                    {active.description}
+                  </p>
 
-              <div className="mt-8 p-4 rounded-xl bg-white/3 border border-white/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <FaClock className="text-gray-500 text-sm" />
-                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                    Full Schedule
-                  </span>
+                  <div className="flex flex-wrap gap-4 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <FaClock className={active.textColor} />
+                      {active.schedule.split("|")[0]}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <FaUserTie className={active.textColor} />
+                      {active.coach.length > 30
+                        ? active.coach.substring(0, 30) + "..."
+                        : active.coach}
+                    </div>
+                  </div>
+
+                  <motion.a
+                    href="#contact"
+                    className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r ${active.color} text-white font-semibold shadow-lg transition-all duration-300 w-fit`}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Enroll Now
+                  </motion.a>
                 </div>
-                <p className="text-gray-300 text-sm">{active.schedule}</p>
+              </div>
+
+              <div className="p-8 lg:p-12 border-t lg:border-t-0 lg:border-l border-white/5">
+                <h4 className="text-lg font-semibold text-white mb-6">
+                  What You&apos;ll Learn
+                </h4>
+                <ul className="space-y-4">
+                  {active.features.map((feature) => (
+                    <motion.li
+                      key={feature}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-start gap-3"
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-md bg-gradient-to-br ${active.color} flex items-center justify-center flex-shrink-0 mt-0.5`}
+                      >
+                        <FaCheck className="text-white text-[10px]" />
+                      </div>
+                      <span className="text-gray-300 text-sm">{feature}</span>
+                    </motion.li>
+                  ))}
+                </ul>
+
+                <div className="mt-8 p-4 rounded-xl bg-white/3 border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaClock className="text-gray-500 text-sm" />
+                    <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                      Full Schedule
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-sm">{active.schedule}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </section>
   );

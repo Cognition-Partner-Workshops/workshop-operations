@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { FaArrowRight, FaTrophy, FaUsers, FaMedal } from "react-icons/fa";
 
 const Scene3D = dynamic(() => import("./Scene3D"), { ssr: false });
@@ -18,7 +19,17 @@ export default function Hero() {
       id="home"
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-primary-950/40 via-transparent to-[#0a0a0f]" />
+      <div className="absolute inset-0">
+        <Image
+          src="/images/hero-banner.jpg"
+          alt="AllSportsProfessionals - Sports Academy"
+          fill
+          className="object-cover opacity-40"
+          priority
+          sizes="100vw"
+        />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-b from-primary-950/60 via-[#0a0a0f]/50 to-[#0a0a0f]" />
 
       <Scene3D />
 
