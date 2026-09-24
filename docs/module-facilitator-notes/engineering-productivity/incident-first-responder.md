@@ -17,6 +17,13 @@ authoring runs against those files; re-measure if any of them change.
   (`incident/incident.py` runs under `uv`, no install step). Free loopback
   ports: 8083, 9090, 3001, 16686, 9093, 9095, 4318, 5432, 6379 (and 8080, 3000
   with `UI=1`).
+- Host size. The gates soak at the pinned profile (24 rps, 24 concurrent) on
+  purpose and ignore `INCIDENT_LOAD_SCALE`; the full stack was verified green
+  on 8 vCPU / 32 GB. On a 2–4 vCPU laptop the before gate passes but the after
+  gate can fail its `offered load reached the service` check
+  (`request_rate >= 12 rps`) or report `no samples in the 2m window` — both are
+  host-sizing diagnostics, not verdicts on the fix. Do not lower the profile;
+  present beats 6–8 from the pre-run session on a small laptop.
 - Access to the **Demo** Devin org (the org sessions must appear in) with the
   `!incident_responder` Playbook and the Automation registered there — see
   [Facilitator setup](#facilitator-setup). Playbooks and Automations must be
@@ -28,10 +35,22 @@ authoring runs against those files; re-measure if any of them change.
   (`#otterworks-alerts` is the name baked into
   `observability/alertmanager/alertmanager.yml.tmpl`). Without it the RCA goes
   in the PR body and the session's final message — the flow still completes.
-- The screen recording at hand (`<recording>` placeholder in the presenter
-  thread). Its first ≈ 13 s are the golden tenant `t-main.otterworks.app`
-  read-only (reachability + HTTP 401 on unauthenticated API calls) and do **not**
-  show slowness; the rest is the local reproduction. Describe it exactly that way.
+- The screen recording of the authoring run at hand (it is a session
+  attachment, not a committed file). Its first ≈ 13 s are the golden tenant
+  `t-main.otterworks.app` read-only (reachability + HTTP 401 on unauthenticated
+  API calls) and do **not** show slowness; the rest is the isolated local
+  reproduction: flat traffic and rising p95 on the Grafana dashboard,
+  `X-DB-Queries: 104` on a single request, the Jaeger trace fanning into the
+  per-document SELECTs, and both `DocumentListLatencyHigh` and
+  `DocumentListQueryFanout` firing. Describe it exactly that way. The three
+  on-screen moments that carry the thread: the flat-traffic / rising-latency
+  chart, the trace waterfall fanning into ~100 queries, and the before/after
+  p95 on one chart after the fix is deployed.
+- Ownership of the live session. Automation-triggered sessions are owned by the
+  org's automation service user, not by the presenter — the webhook trigger has
+  no `create_as_user_id`. The session still appears in the Demo org session
+  list; if you need a run under your own name, use the Slack-trigger variant or
+  the hand-pasted fallback prompt.
 
 ## Runbook (≈ 12 minutes)
 
@@ -46,10 +65,10 @@ Timings are the wall clock the authoring runs measured; the alert fires at
 | 4 | ≈ 1:30 | LIVE | `DocumentListLatencyHigh` fires in Alertmanager (≈ 87 s after arm; promise is 180 s). `DocumentListQueryFanout` alongside. Alertmanager posts to `DEVIN_WEBHOOK_URL`. | "There is the page. `DocumentListLatencyHigh`, labeled `page: devin`. Alertmanager has just posted it to a Devin Automation webhook. Nobody is going to type a prompt." | `make incident-simulate RECEIVER=devin` prints the exact payload — paste it after the fallback prompt from the presenter thread into a new session by hand. |
 | 5 | 2:30–3:30 | LIVE → PRE-RUN | Switch to the Demo org session list; the automation-started session appears. Show its first steps: acknowledgement, telemetry read, three facts with numbers. Then switch to the **pre-run session** for the rest. | "The session's first two minutes are in the trace, not the code: p95 two-point-four against a one-second threshold, request rate flat, one request fanning into a hundred identical SELECTs on `document_versions`. That waterfall is the finding." | If the webhook did not reach the Automation (invocation cap, disabled, network), open the pre-run session from the authoring run and narrate from there. Check the cap: 3 invocations per hour. |
 | 6 | 3:30–5:00 | PRE-RUN | In the pre-run session: `make incident-verify SCENARIO=n-plus-one EXPECT=before` green. Show the Jaeger trace it captured: ≈ 2.3 s, 111 spans, 104 SQL SELECTs. | "Before it touches code it reproduces on its own machine and runs the before gate: fixture pinned, alert fired within 180 seconds, more than 50 queries a request, p95 above one second. Green means 'I see the same incident the alert saw.'" | Run the gate live on the laptop — it is green on the unfixed stack you just armed (allow ~2 min). |
-| 7 | 5:00–6:30 | PRE-RUN | The diff: one window-function query in `services/document-service/app/services/document_service.py`, one Alembic revision adding `ix_documents_owner_listing` and `ix_document_versions_document_version_desc`, one test under `services/document-service/tests/` pinning the statement count. | "Smallest fix that removes the cause. One batched query, one migration with two indexes, one regression test. No refactor, no touching the alert rule, no touching the catalog." | Show the same diff on the answer-key branch (`devin/1790228055-answer-key-n-plus-one`) or on the pre-opened PR. |
-| 8 | 6:30–8:30 | PRE-RUN | The after gate output — **red first**: `PASS p95_seconds=0.125 <= 0.5`, `FAIL queries_per_request=5.000 <= 4`. Then the trace for the new build (5 statements: count, page, versions load, comments load, batched recent-versions), the catalog correction `4 → 5`, the audited reason in `incident/expected.yaml`, and the green re-run. | "The gate rejected the correct fix. p95 was down to 125 milliseconds and the alert had cleared, but the catalog said four statements and the build did five. Devin did not shave a query and did not raise the threshold. It read the trace: count, page, two relationship loads the page always made, and one batched query — five is right, the catalog was wrong. The fix went to the contract at its root, with the reason committed. That is what verification is for." | This beat is entirely pre-run evidence; the session transcript and `git log -1 -- incident/expected.yaml` on the answer-key branch carry it. |
-| 9 | 8:30–9:30 | LIVE (or PRE-RUN) | Slack: the acknowledgement and the single RCA reply in the alert's thread. GitHub: the PR against `demo-incident` with the before/after table (p95 2.43 s → 0.13 s, 104 → 5), the two gate summary lines, the report file names, the two screenshots. | "One acknowledgement, one RCA, in the thread the on-call is already reading. And the PR: what users saw, what telemetry showed, root cause as file, function and line, before and after, measured." | If Slack is not wired (`SLACK_WEBHOOK_URL` at the sink), show the RCA in the PR body and the session's final message instead — `docs/incident-responder/automation.md` routes it there when the payload has no Slack thread. If the live PR is not there, use the pre-opened PR. |
-| 10 | 9:30–11:00 | LIVE | Merge the PR into `demo-incident`. `cd-tenant.yml` rebuilds document-service and rolls the `otterworks-incident` tenant; the migration runs on container start. Show the tenant's Grafana p95 falling and statements/request 104 → 5, the alert resolving, and `https://t-incident.otterworks.app` opening "My documents" without the spinner. | "Merging deploys. The tenant picks up the new image, the migration applies on start, and the same load that paged us is now served at five statements a request and a p95 around 130 milliseconds. The alert resolves on its own." | CD is the slowest live dependency (several minutes). Fallback: on the laptop, check out the answer-key branch, rebuild (`docker compose -f docker-compose.yml -f docker-compose.infra.yml -f docker-compose.incident.yml up -d --build document-service`) and run `make incident-verify SCENARIO=n-plus-one EXPECT=after` — green, alert clears locally under the same load. |
+| 7 | 5:00–6:30 | PRE-RUN | The diff: one window-function query in `services/document-service/app/services/document_service.py`, one Alembic revision adding two indexes (owner listing order on `documents`; `(document_id, version_number)` on `document_versions`), one test under `services/document-service/tests/` pinning the statement count. | "Smallest fix that removes the cause. One batched query, one migration with two indexes, one regression test. No refactor, no touching the alert rule, no touching the catalog." | Show the same diff on the answer-key PR (see [Facilitator setup](#facilitator-setup), item 6). |
+| 8 | 6:30–8:30 | PRE-RUN | The after gate output — **red first**: `PASS p95_seconds=0.125 <= 0.5`, `FAIL queries_per_request=5.000 <= 4`. Then the trace for the new build (5 statements: count, page, versions load, comments load, batched recent-versions), the catalog correction `4 → 5`, the audited reason in `incident/expected.yaml`, and the green re-run. | "The gate rejected the correct fix. p95 was down to 125 milliseconds and the alert had cleared, but the catalog said four statements and the build did five. Devin did not shave a query and did not raise the threshold. It read the trace: count, page, two relationship loads the page always made, and one batched query — five is right, the catalog was wrong. The fix went to the contract at its root, with the reason committed. That is what verification is for." | This beat is authoring-run evidence: the audited reason is in `git log -p -- incident/expected.yaml` on `main`. The unattended validation run hit a *different* real red (p95 0.98 s with the batched query alone, version bodies still loaded) and iterated the fix; its PR carries that output. Pick one story and quote that run's numbers. |
+| 9 | 8:30–9:30 | LIVE (or PRE-RUN) | Slack: the acknowledgement and the single RCA reply in the alert's thread. GitHub: the PR against `demo-incident` with the before/after table (authoring runs: p95 2.43 s → 0.13 s, 104 → 5; validation run: 3.85 s → 0.10 s, 74/104 → 5 — quote the run on screen), the two gate summary lines, the report file names, the two screenshots. | "One acknowledgement, one RCA, in the thread the on-call is already reading. And the PR: what users saw, what telemetry showed, root cause as file, function and line, before and after, measured." | If Slack is not wired (no real `SLACK_WEBHOOK_URL`), show the RCA in the PR body and the session's final message instead — `docs/incident-responder/automation.md` routes it there when the payload has no Slack thread. If the live PR is not there, use the pre-opened PR. |
+| 10 | 9:30–11:00 | LIVE | Merge the PR into `demo-incident`. `cd-tenant.yml` rebuilds document-service and rolls the `otterworks-incident` tenant; the migration runs on container start. Show the tenant's statements/request stepping 104 → 5 on the shared Grafana (filter `namespace=otterworks-incident`) and `https://t-incident.demo.otterworks.app` opening "My documents" without the spinner. | "Merging deploys. The tenant picks up the new image, the migration applies on start, and the same list that cost a hundred and four statements a request is served at five. The alert clears on its own once the fixed build has served a full window." | Measured on the validation run: rollout ≈ 4 min after merge, 104 → 5 on the next scrape. The tenant's p95 is **not** the clean chart — it runs the load at `INCIDENT_LOAD_SCALE=0.25` and has little CPU headroom, so p95 stayed noisy (2–5 s at 1–4 rps) and the alert re-fired once before clearing. Show the p95 recovery on the laptop instead: check out the merged branch, rebuild (`docker compose -f docker-compose.yml -f docker-compose.infra.yml -f docker-compose.incident.yml up -d --build document-service`) and run `make incident-verify SCENARIO=n-plus-one EXPECT=after` — green, p95 ≈ 0.13–0.21 s, alert clears locally under the full 24 rps. Have this pre-run if CD is slow. |
 | 11 | 11:00–12:00 | LIVE | `make disarm`. Close on the two numbers. | Talk track closing (below). | None needed. |
 
 Total ≈ 12 minutes with beats 6–8 pre-run. If everything live succeeds, beats
@@ -65,9 +84,9 @@ merge-to-recovery segment is not, so keep beat 10's local fallback ready.
 - [ ] Dry run: `make arm SCENARIO=n-plus-one`, wait for `make incident-status` to show `DocumentListLatencyHigh` firing (≈ 90 s), then `make disarm`. This warms images and proves the alert path.
 - [ ] Automation in the Demo org: enabled, `DEVIN_WEBHOOK_URL` pointing at its incoming-webhook URL, and **under its invocation cap** (3 per 3600 s — the dry run above does not count if the webhook was at the sink, but a real dry run through the Automation does; one demo run plus one fallback fits). Concurrency is 1 running / queue depth 0.
 - [ ] Slack: channel + `SLACK_WEBHOOK_URL` set on Alertmanager, Devin app in the channel — or accept the sink fallback and the RCA-in-PR path.
-- [ ] Tenant `otterworks-incident` awake: `demo-incident` branch on the before-state SHA (same as `main`'s document-service), `https://api-t-incident.otterworks.app` answering, its Grafana/Alertmanager reachable if you intend to show recovery there.
+- [ ] Tenant `otterworks-incident` awake: `demo-incident` branch on the before-state SHA (same as `main`'s document-service), `https://api-t-incident.demo.otterworks.app` answering, and the shared Grafana / Alertmanager (`grafana.otterworks.app`, `alertmanager.otterworks.app`; they sit behind a login) open in a tab filtered to `namespace=otterworks-incident` if you intend to show the tenant there.
 - [ ] Browser tabs: Grafana `/d/otterworks-incident-responder`, Jaeger search (`document-service`, `minDuration=1s`), Alertmanager, the `otterworks` PR list, the Slack channel, the Demo org session list, the pre-run session.
-- [ ] Recording file at hand; pre-opened fallback PR from the answer-key branch (closed or draft) bookmarked.
+- [ ] Recording file at hand; the answer-key PR (item 6 below) bookmarked as the fallback.
 - [ ] Terminal font large; `make incident-simulate RECEIVER=devin` tested once so you know it prints.
 
 ## Reset between runs
@@ -78,7 +97,7 @@ merge-to-recovery segment is not, so keep beat 10's local fallback ready.
    `git push --force-with-lease origin <before-state-sha>:demo-incident`. CD
    redeploys the tenant from that SHA (alternatively
    `scripts/deploy-tenant.sh <tenant> --image-tag <golden>` per the Skill).
-4. Locally, if you built the answer key: `git checkout main -- services/document-service && make incident-up` rebuilds the before-state image.
+4. Locally, if you built the answer key: `git checkout main -- services/document-service && make incident-up` rebuilds the before-state image (`make incident-fingerprint` must then report both fingerprints matching).
 5. `make incident-verify SCENARIO=n-plus-one EXPECT=before` must go green again after any reset; fixture drift here means something other than the fix changed.
 6. Re-arm when ready: `make arm SCENARIO=n-plus-one`.
 
@@ -114,15 +133,19 @@ merge-to-recovery segment is not, so keep beat 10's local fallback ready.
 5. **Sandbox tenant.** `demo-incident` exists on the remote; keep it at the
    before-state SHA (recreate from `main` if it drifts). The
    `demo-**` rule in `.github/workflows/cd-tenant.yml` deploys tenant
-   `otterworks-incident` at `t-incident.otterworks.app` /
-   `api-t-incident.otterworks.app`. Never seed, inject or load `t-main`.
-6. **Answer key.** Keep the answer-key branch
-   (`devin/1790228055-answer-key-n-plus-one`) unmerged and never merge it into
-   `main` — it is facilitator fallback only and must not appear in
-   attendee-facing text. At the time these notes were written that branch was
-   **not present on the `otterworks` remote** (only `demo-incident` was); confirm
-   it exists, or push it from the authoring session, before relying on the
-   answer-key fallbacks in the runbook.
+   `otterworks-incident` at `t-incident.demo.otterworks.app` /
+   `api-t-incident.demo.otterworks.app` (the tenant is deployed with
+   `--host-suffix demo.otterworks.app --branch demo-incident`; the `--branch`
+   flag is what stamps the `branch` label the responder reads off the alert).
+   Never seed, inject or load `t-main`.
+6. **Answer key.** The single answer key is the validation run's PR,
+   [otterworks #1681](https://github.com/Cognition-Partner-Workshops/otterworks/pull/1681)
+   (base `demo-incident`). It was merged into `demo-incident` once to exercise
+   merge → CD → tenant rollout and then reverted, so `demo-incident` is back at
+   the before-state; its branch remains on the remote as the facilitator
+   fallback for beats 7–10. **Never merge it, or any answer key, into `main`**,
+   and never name it in attendee-facing text. Earlier authoring answer keys are
+   superseded; do not use them.
 7. **No observability MCP connector is required** — the local
    Prometheus/Grafana/Jaeger fallback is the default. A Grafana, Datadog or
    Sentry MCP connector in the Demo org is the upgrade path for a real tenant
