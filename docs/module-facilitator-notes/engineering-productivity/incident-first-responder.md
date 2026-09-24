@@ -95,8 +95,12 @@ merge-to-recovery segment is not, so keep beat 10's local fallback ready.
 2. Close (or leave open as the next run's fallback) the PR Devin opened.
 3. Force-push `demo-incident` back to the before-state commit:
    `git push --force-with-lease origin <before-state-sha>:demo-incident`. CD
-   redeploys the tenant from that SHA (alternatively
-   `scripts/deploy-tenant.sh <tenant> --image-tag <golden>` per the Skill).
+   redeploys the tenant from that SHA. Do **not** reset the incident tenant with
+   `scripts/deploy-tenant.sh incident --image-tag <tag>` or a `BUG_IMAGE_TAG_*`
+   override: the alert's `branch` label still says `demo-incident`, so the
+   responder would check out a branch that did not build the running image and
+   its local reproduction would disagree with the tenant. The branch push is the
+   only supported reset path for this tenant.
 4. Locally, if you built the answer key: `git checkout main -- services/document-service && make incident-up` rebuilds the before-state image (`make incident-fingerprint` must then report both fingerprints matching).
 5. `make incident-verify SCENARIO=n-plus-one EXPECT=before` must go green again after any reset; fixture drift here means something other than the fix changed.
 6. Re-arm when ready: `make arm SCENARIO=n-plus-one`.
