@@ -433,6 +433,17 @@ credentials as a feature, [Automations](https://docs.devin.ai/product-guides/aut
 Playbooks, and the programmatic verification loop). Facilitator-only logistics
 stay in this operator repo; attendee-facing narrative goes to `workshop-metadata`.
 
+When the starting point is a raw **requirement** rather than a chosen use case
+(a feature ask, a technical spec, a sample prompt), start one level up with
+[`!build-capability-demo`](.workshop/playbooks/build-capability-demo.devin.md):
+it covers the shallow investigation and one-page plan, reusing the golden
+estate, instrumenting the claims so they are observable, the arm/disarm/verify
+harness, the no-human-prompt trigger (Automation config with rationale), the
+unattended end-to-end run, fanning independent tracks out to cost-efficient
+child sessions, and then delegates to `!author-devin-demo`,
+`!run_demo_sessions` and `!assess-demo-flow` for the artifacts, the target-org
+run and the independent verdict.
+
 ## Facilitator Documentation
 
 | Document | Description |
